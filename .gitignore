@@ -1,0 +1,37 @@
+# Python cache / local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local editor / assistant state
+.claude/
+.vscode/
+.idea/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Private schedule source files
+/source/
+
+# Private tabular data anywhere in the repository
+*.csv
+
+# Natural science files are private and should not be uploaded at all.
+/natural_science/
+
+# Generated or private school-wide data.
+# Markdown reports, classification files, CSV, JSON, and generated HTML can contain timetable data.
+/school_wide/*
+!/school_wide/README.md
+!/school_wide/_html2canvas.min.js
+
+# This script currently contains hard-coded natural science timetable rows.
+# Refactor it to read an ignored data file before tracking it publicly.
+/scripts/build_schedule.py
+
+# Office temporary files
+~$*.docx
