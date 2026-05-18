@@ -276,12 +276,6 @@
                   background: var(--muted); color: #fff;
                   border: none; cursor: pointer; font-weight: bold; line-height: 1.4; }
 
-  /* ── 空堂承諾模式 ──────────────────────────── */
-  .cell-free-promise {
-    background: #fef9c3; cursor: pointer;
-    color: #78716c; font-size: 0.82em;
-  }
-  .cell-free-promise:hover { background: #fef08a; }
 </style>
 </head>
 <body>
@@ -302,11 +296,7 @@
       <input type="checkbox" id="ib-mode"> IB 模式（請假 IB 課時只顯示 IB 老師）
     </label>
   </div>
-  <div style="margin-top:0.35em; font-size:0.9em">
-    <label style="cursor:pointer" title="情境：已承諾空堂時幫忙代課，但臨時又無法上，需再找人接手。預設不開啟。">
-      <input type="checkbox" id="free-as-occupied"> 空堂承諾模式（空堂格也可點選來找代理人）
-    </label>
-  </div>
+
 </section>
 
 <section>
@@ -479,22 +469,8 @@ function isIbCourse(name) {
   return true;
 }
 
-function freeAsOccupied() {
-  const el = document.getElementById("free-as-occupied");
-  return el ? el.checked : false;
-}
-
-// 空堂時段的虛擬課程資料（用於承諾模式）
-function freeSlotEntry(d, p) {
-  return { tcode: meCode(), tname: me()?.name || "", day: d, period: p,
-           course: "空堂承諾代課", klass: "", room: "", courseDetail: "" };
-}
-// 取得課程資料；承諾模式下空格也回傳虛擬 entry
 function getEffectiveEntry(tc, d, p) {
-  const e = getEntry(tc, d, p);
-  if (e) return e;
-  if (tc === meCode() && freeAsOccupied()) return freeSlotEntry(d, p);
-  return null;
+  return getEntry(tc, d, p);
 }
 
 const STORAGE_KEY = "schoolWideSubstituteTeacher";
@@ -576,14 +552,6 @@ function init() {
   ibModeEl.addEventListener("change", () => {
     localStorage.setItem("ibMode", ibModeEl.checked ? "1" : "0");
     populateTeacherDropdown();
-    resetState();
-  });
-
-  // 空堂承諾模式
-  const faoEl = document.getElementById("free-as-occupied");
-  faoEl.checked = localStorage.getItem("freeAsOccupied") === "1";
-  faoEl.addEventListener("change", () => {
-    localStorage.setItem("freeAsOccupied", faoEl.checked ? "1" : "0");
     resetState();
   });
 
@@ -678,7 +646,7 @@ function computeCellState(d, p) {
   if (conf) {
     const partner = teacherInfo(conf.c.partnerCode);
     if (conf.role === "leave") {
-      const courseLabel = e ? `${e.course}${e.klass ? " " + e.klass : ""}` : "空堂承諾";
+      const courseLabel = `${e.course}${e.klass ? " " + e.klass : ""}`;
       if (conf.c.type === "sub") {
         return {
           cls: "cell-confirmed-leave-sub",
@@ -701,7 +669,7 @@ function computeCellState(d, p) {
   }
 
   if (isInLeave(d, p)) {
-    const leaveLabel = e ? `${e.course}${e.klass ? " " + e.klass : ""}` : "空堂承諾";
+    const leaveLabel = `${e.course}${e.klass ? " " + e.klass : ""}`;
     return {
       cls: "cell-leave-active",
       html: `${leaveLabel}<span class="anno">↩ 請假中</span>`,
@@ -721,9 +689,6 @@ function computeCellState(d, p) {
       cls: "cell-occupied",
       html: `${e.course}${e.klass ? " " + e.klass : ""}`,
     };
-  }
-  if (freeAsOccupied() && state.mode !== "partnerSelected") {
-    return { cls: "cell-free-promise", html: "空堂" };
   }
   return { cls: "cell-empty", html: "·" };
 }
@@ -1326,7 +1291,7 @@ function onCellClick(d, p) {
   }
 
   if (state.mode === "idle") {
-    if (!isOccupied(meCode(), d, p) && !freeAsOccupied()) return;
+    if (!isOccupied(meCode(), d, p)) return;
     state.mode = "leaveSelected";
     state.leaveSlot = {day: d, period: p};
     render();
@@ -1340,7 +1305,7 @@ function onCellClick(d, p) {
       render();
       return;
     }
-    if (isOccupied(meCode(), d, p) || freeAsOccupied()) {
+    if (isOccupied(meCode(), d, p)) {
       state.leaveSlot = {day: d, period: p};
       render();
     }
