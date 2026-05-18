@@ -1435,28 +1435,47 @@ function generateSummaryForPartner(pcode, confs) {
 }
 
 // ── 新手引導 ─────────────────────────────────────────────────────────
+// ── 新手引導（4 步驟互動版）─────────────────────────────────────────
+// 第 2 步按「下一步」時自動替使用者點一個有課的格子，讓後續步驟有內容可看。
+// 第 4 步完成後清除所有已選狀態，捲回頂端。
 const TOUR_STEPS = [
   {
     targetId: "teacher",
-    title: "第 1 步：選擇你是誰",
-    body: "從下拉選單找到自己的姓名（可在右側搜尋欄輸入姓名或代號快速定位）。瀏覽器會記住上次選擇，下次打開不需要重選。",
+    title: "第 1 步：選擇誰要調代課",
+    body: "下拉選單選擇要調代課的老師，通常就是你自己。",
   },
   {
     targetId: "schedule",
     title: "第 2 步：點擊請假時段",
-    body: "課表顯示你的每週課程（黃色格子為你有課的時段）。\n點擊你要請假的那一格，該格會變色，下方出現可代課的老師清單。",
+    body: "在課表中選擇要調代課的時段（黃色格子）。\n譬如我先選這堂：",
+    autoClickOnNext: true,   // 按「下一步」時自動點第一格有課的時段
   },
   {
     targetId: "panel",
-    scrollFallback: "schedule",
     title: "第 3 步：選代課人並確認",
-    body: "點選代課人選後，可選擇「代課」或點課表空格「調課」。確認後下方第 3 區會出現對方課表和可傳送的訊息。\n\n右上角 ？ 按鈕可隨時重看說明。",
+    body: "在這裡，顯示可以協助的老師列表。我們可以找到同一個任教班的老師，也可以找到同科別的老師，當然還有其他時段允許的老師。",
+  },
+  {
+    targetId: "reset-btn",
+    title: "第 4 步：確認或取消",
+    body: "如果你覺得點錯了，可以按這裡取消。",
     isLast: true,
   },
 ];
 let _tourStep = 0;
 
+// 自動點第一個有課的格子，讓引導進到「有候選人」的狀態
+function _tourAutoClickCell() {
+  const tcode = meCode();
+  const entry = DATA.find(d => d.tcode === tcode);
+  if (!entry) return;
+  // 確保從 idle 狀態開始（避免點到已選的格子出問題）
+  if (state.mode !== "idle") resetState();
+  onCellClick(entry.day, entry.period);
+}
+
 function startTour() {
+  resetState();
   _tourStep = 0;
   _showTourStep();
 }
@@ -1468,25 +1487,33 @@ function _showTourStep() {
   document.getElementById("tour-body").textContent = step.body;
   document.getElementById("tour-next").textContent = step.isLast ? "完成" : "下一步";
 
-  const el = document.getElementById(step.targetId);
-  const scrollEl = el || document.getElementById(step.scrollFallback);
-  if (scrollEl) {
-    scrollEl.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => _positionTour(el || scrollEl), 320);
-  }
+  // panel 在 autoClick 後才會出現，等 render 完再定位
+  const delay = step.targetId === "panel" ? 80 : 0;
+  setTimeout(() => {
+    const el = document.getElementById(step.targetId);
+    if (!el || el.style.display === "none") {
+      // panel 尚未顯示時 fallback 到 schedule
+      const fb = document.getElementById("schedule");
+      if (fb) { fb.scrollIntoView({ behavior: "smooth", block: "center" }); }
+      setTimeout(() => _positionTour(fb || document.body), 300);
+      return;
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => _positionTour(el), 300);
+  }, delay);
 }
 function _positionTour(el) {
-  const sp = document.getElementById("tour-spotlight");
+  const sp  = document.getElementById("tour-spotlight");
   const box = document.getElementById("tour-box");
   const pad = 10;
-  const r = el.getBoundingClientRect();
+  const r   = el.getBoundingClientRect();
 
   sp.style.top    = (r.top  - pad) + "px";
   sp.style.left   = (r.left - pad) + "px";
   sp.style.width  = (r.width  + pad * 2) + "px";
   sp.style.height = (r.height + pad * 2) + "px";
 
-  const boxW = 300;
+  const boxW  = 300;
   let bx = Math.max(8, Math.min(r.left, window.innerWidth - boxW - 16));
   const belowY = r.bottom + pad + 14;
   const by = (belowY + 180 < window.innerHeight) ? belowY : r.top - pad - 190;
@@ -1494,6 +1521,8 @@ function _positionTour(el) {
   box.style.top  = Math.max(8, by) + "px";
 }
 function tourNext() {
+  const step = TOUR_STEPS[_tourStep];
+  if (step.autoClickOnNext) _tourAutoClickCell();
   _tourStep++;
   if (_tourStep >= TOUR_STEPS.length) { closeTour(); return; }
   _showTourStep();
@@ -1501,6 +1530,11 @@ function tourNext() {
 function closeTour() {
   document.getElementById("tour-overlay").classList.remove("active");
   localStorage.setItem("tourDone", "1");
+  // 最後一步完成：清除示範狀態，捲回最頂端
+  if (_tourStep >= TOUR_STEPS.length - 1) {
+    resetState();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 }
 
 init();
