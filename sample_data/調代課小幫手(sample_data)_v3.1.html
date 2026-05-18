@@ -1435,9 +1435,16 @@ function generateSummaryForPartner(pcode, confs) {
 }
 
 // ── 新手引導 ─────────────────────────────────────────────────────────
-// ── 新手引導（4 步驟互動版）─────────────────────────────────────────
-// 第 2 步按「下一步」時自動替使用者點一個有課的格子，讓後續步驟有內容可看。
-// 第 4 步完成後清除所有已選狀態，捲回頂端。
+// ── 新手引導（5 步驟互動版）─────────────────────────────────────────
+// 步驟設計：
+//   1. 選老師（idle）
+//   2. 課表 → 下一步後延遲 1 秒自動點第一格有課的時段（leaveSelected）
+//   3. 候選面板 → 下一步後自動點第一位候選老師（partnerSelected）
+//   4. 課表顯示可調時段 → 下一步後自動點第一個可調格子（confirmed）
+//   5. 清除按鈕 → 完成後 resetState() + 捲回頂端
+//
+// 上一步：清除狀態後重新執行到上一步所需的所有 setup actions。
+// ─────────────────────────────────────────────────────────────────────
 const TOUR_STEPS = [
   {
     targetId: "teacher",
@@ -1448,37 +1455,69 @@ const TOUR_STEPS = [
     targetId: "schedule",
     title: "第 2 步：點擊請假時段",
     body: "在課表中選擇要調代課的時段（黃色格子）。\n譬如我先選這堂：",
-    autoClickOnNext: true,   // 按「下一步」時自動點第一格有課的時段
+    // 按「下一步」後延遲 1 秒點格子，讓使用者看清楚
+    nextDelay: 1000,
+    nextAction: "_tourClickFirstCell",
   },
   {
     targetId: "panel",
-    title: "第 3 步：選代課人並確認",
+    title: "第 3 步：選代課人",
     body: "在這裡，顯示可以協助的老師列表。我們可以找到同一個任教班的老師，也可以找到同科別的老師，當然還有其他時段允許的老師。",
+    nextAction: "_tourClickFirstCandidate",
+    // 上一步需要的狀態復原（回到 leaveSelected）
+    restoreActions: ["_tourClickFirstCell"],
+  },
+  {
+    targetId: "schedule",
+    title: "第 4 步：選擇可以調換的課",
+    body: "課表中出現可調課的時段（藍色格子）。點擊其中一個完成調課配對。",
+    nextAction: "_tourClickFirstSwapOption",
+    restoreActions: ["_tourClickFirstCell", "_tourClickFirstCandidate"],
   },
   {
     targetId: "reset-btn",
-    title: "第 4 步：確認或取消",
-    body: "如果你覺得點錯了，可以按這裡取消。",
+    title: "第 5 步：確認或取消",
+    body: "如果你覺得點錯了，可以按這裡取消，重新開始。",
     isLast: true,
+    restoreActions: ["_tourClickFirstCell", "_tourClickFirstCandidate", "_tourClickFirstSwapOption"],
   },
 ];
 let _tourStep = 0;
+let _tourTimer = null;
 
-// 自動點第一個有課的格子，讓引導進到「有候選人」的狀態
-function _tourAutoClickCell() {
+// ── Tour 的 action 函數 ───────────────────────────────────────────────
+function _tourClickFirstCell() {
   const tcode = meCode();
   const entry = DATA.find(d => d.tcode === tcode);
   if (!entry) return;
-  // 確保從 idle 狀態開始（避免點到已選的格子出問題）
-  if (state.mode !== "idle") resetState();
+  if (state.mode !== "idle") return;  // 只在 idle 才點，避免雙重點
   onCellClick(entry.day, entry.period);
 }
+function _tourClickFirstCandidate() {
+  const btn = document.querySelector("#panel .cand-btn");
+  if (!btn || !btn.dataset.pcode) return;
+  onCandidateClick(btn.dataset.pcode);
+}
+function _tourClickFirstSwapOption() {
+  // 找第一個 cell-swap-option 的格子
+  const td = document.querySelector("#schedule td.cell-swap-option");
+  if (!td) return;
+  onCellClick(parseInt(td.dataset.day), parseInt(td.dataset.period));
+}
+function _tourRunAction(name) {
+  if (name === "_tourClickFirstCell")      _tourClickFirstCell();
+  if (name === "_tourClickFirstCandidate") _tourClickFirstCandidate();
+  if (name === "_tourClickFirstSwapOption") _tourClickFirstSwapOption();
+}
 
+// ── Tour 控制 ────────────────────────────────────────────────────────
 function startTour() {
+  if (_tourTimer) { clearTimeout(_tourTimer); _tourTimer = null; }
   resetState();
   _tourStep = 0;
   _showTourStep();
 }
+
 function _showTourStep() {
   const step = TOUR_STEPS[_tourStep];
   document.getElementById("tour-overlay").classList.add("active");
@@ -1486,55 +1525,84 @@ function _showTourStep() {
   document.getElementById("tour-title").textContent = step.title;
   document.getElementById("tour-body").textContent = step.body;
   document.getElementById("tour-next").textContent = step.isLast ? "完成" : "下一步";
+  // 第一步隱藏「上一步」
+  const prevBtn = document.getElementById("tour-prev");
+  if (prevBtn) prevBtn.style.visibility = _tourStep === 0 ? "hidden" : "visible";
 
-  // panel 在 autoClick 後才會出現，等 render 完再定位
-  const delay = step.targetId === "panel" ? 80 : 0;
+  // 定位 spotlight（panel 需要等 render 後才存在）
   setTimeout(() => {
-    const el = document.getElementById(step.targetId);
-    if (!el || el.style.display === "none") {
-      // panel 尚未顯示時 fallback 到 schedule
-      const fb = document.getElementById("schedule");
-      if (fb) { fb.scrollIntoView({ behavior: "smooth", block: "center" }); }
-      setTimeout(() => _positionTour(fb || document.body), 300);
-      return;
-    }
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => _positionTour(el), 300);
-  }, delay);
+    let el = document.getElementById(step.targetId);
+    // panel 若還沒出現（display:none）就 fallback 到 schedule
+    if (el && el.style.display === "none") el = null;
+    const target = el || document.getElementById("schedule");
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => _positionTour(target), 320);
+  }, 60);
 }
+
 function _positionTour(el) {
   const sp  = document.getElementById("tour-spotlight");
   const box = document.getElementById("tour-box");
   const pad = 10;
   const r   = el.getBoundingClientRect();
-
   sp.style.top    = (r.top  - pad) + "px";
   sp.style.left   = (r.left - pad) + "px";
   sp.style.width  = (r.width  + pad * 2) + "px";
   sp.style.height = (r.height + pad * 2) + "px";
 
-  const boxW  = 300;
+  const boxW = 300;
   let bx = Math.max(8, Math.min(r.left, window.innerWidth - boxW - 16));
   const belowY = r.bottom + pad + 14;
-  const by = (belowY + 180 < window.innerHeight) ? belowY : r.top - pad - 190;
+  const by = (belowY + 190 < window.innerHeight) ? belowY : r.top - pad - 200;
   box.style.left = bx + "px";
   box.style.top  = Math.max(8, by) + "px";
 }
+
 function tourNext() {
+  if (_tourTimer) return;  // 延遲中禁止連按
   const step = TOUR_STEPS[_tourStep];
-  if (step.autoClickOnNext) _tourAutoClickCell();
-  _tourStep++;
-  if (_tourStep >= TOUR_STEPS.length) { closeTour(); return; }
+  if (step.isLast) { closeTour(); return; }
+
+  const doAdvance = () => {
+    _tourTimer = null;
+    if (step.nextAction) _tourRunAction(step.nextAction);
+    _tourStep++;
+    _showTourStep();
+  };
+
+  if (step.nextDelay) {
+    // 按鈕先 disable，延遲後自動觸發
+    document.getElementById("tour-next").disabled = true;
+    _tourTimer = setTimeout(() => {
+      document.getElementById("tour-next").disabled = false;
+      doAdvance();
+    }, step.nextDelay);
+  } else {
+    doAdvance();
+  }
+}
+
+function tourPrev() {
+  if (_tourTimer) { clearTimeout(_tourTimer); _tourTimer = null;
+    document.getElementById("tour-next").disabled = false; }
+  if (_tourStep <= 0) return;
+  _tourStep--;
+  // 清除狀態，重新執行到上一步所需的 actions
+  resetState();
+  const prevStep = TOUR_STEPS[_tourStep];
+  if (prevStep.restoreActions) {
+    prevStep.restoreActions.forEach(a => _tourRunAction(a));
+  }
   _showTourStep();
 }
+
 function closeTour() {
+  if (_tourTimer) { clearTimeout(_tourTimer); _tourTimer = null; }
   document.getElementById("tour-overlay").classList.remove("active");
+  document.getElementById("tour-next").disabled = false;
   localStorage.setItem("tourDone", "1");
-  // 最後一步完成：清除示範狀態，捲回最頂端
-  if (_tourStep >= TOUR_STEPS.length - 1) {
-    resetState();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
+  resetState();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 init();
@@ -1551,7 +1619,11 @@ if (!localStorage.getItem("tourDone")) setTimeout(startTour, 600);
     <p id="tour-body"></p>
     <div class="tour-nav">
       <button class="tour-skip" onclick="closeTour()">略過說明</button>
-      <button class="btn" id="tour-next" onclick="tourNext()">下一步</button>
+      <div style="display:flex; gap:0.4em; align-items:center">
+        <button class="btn" id="tour-prev" onclick="tourPrev()"
+          style="background:var(--muted); visibility:hidden">上一步</button>
+        <button class="btn" id="tour-next" onclick="tourNext()">下一步</button>
+      </div>
     </div>
   </div>
 </div>
