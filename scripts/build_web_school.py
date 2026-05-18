@@ -41,39 +41,32 @@ def name_strokes(name):
             return 999  # 含非中文字（英文名）→ 排最後
     return total
 
-with open(CSV_PATH, encoding="utf-8-sig") as f:
-    rows = list(csv.DictReader(f))
-
-data = [
-    {
-        "tcode": r["教師代碼"],
-        "tname": r["教師"],
-        "day": int(r["星期"]),
-        "period": int(r["節次"]),
-        "course": r["課程名稱"],
-        "klass": r["班級"],
-        "room": r["教室"],
-        # 該節課的細科目（給「同細科」UI 子排序用）
-        "courseDetail": classify_course_detail(r["課程名稱"]) or "",
-    }
-    for r in rows
-]
-
-teachers_map = {}
-for r in rows:
-    teachers_map[r["教師代碼"]] = {
-        "name": r["教師"],
-        "subject": r["主授科目"],
-        # 該老師主要的細科目（最常教的細科目）
-        "detail": r["細科目"],
-        # category 內部用（IB 課程候選分群），UI 不顯示
-        "isIB": r["教師類別"] == "IB教師",
-        # 班級導師（值為班號或空字串），UI 在請假該班時顯示「導師」標記
-        "homeroom": r["導師班級"],
-        # 姓名總筆劃（給 UI 候選排序用，由 _strokes.json 算出）
-        "strokes": name_strokes(r["教師"]),
-    }
-teachers = [{"code": c, **info} for c, info in sorted(teachers_map.items())]
+def build_data_and_teachers(rows):
+    data = [
+        {
+            "tcode": r["教師代碼"],
+            "tname": r["教師"],
+            "day": int(r["星期"]),
+            "period": int(r["節次"]),
+            "course": r["課程名稱"],
+            "klass": r["班級"],
+            "room": r["教室"],
+            "courseDetail": classify_course_detail(r["課程名稱"]) or "",
+        }
+        for r in rows
+    ]
+    teachers_map = {}
+    for r in rows:
+        teachers_map[r["教師代碼"]] = {
+            "name": r["教師"],
+            "subject": r["主授科目"],
+            "detail": r["細科目"],
+            "isIB": r["教師類別"] == "IB教師",
+            "homeroom": r["導師班級"],
+            "strokes": name_strokes(r["教師"]),
+        }
+    teachers = [{"code": c, **info} for c, info in sorted(teachers_map.items())]
+    return data, teachers
 
 TEMPLATE = r"""<!DOCTYPE html>
 <html lang="zh-TW">
@@ -1420,13 +1413,20 @@ init();
 </html>
 """
 
-h2c_src = H2C_JS.read_text(encoding="utf-8") if H2C_JS.exists() else "// html2canvas missing — run: python scripts/build_assets.py"
-html = TEMPLATE.replace("__HTML2CANVAS__", h2c_src)
-html = html.replace("__DATA__", json.dumps(data, ensure_ascii=False))
-html = html.replace("__TEACHERS__", json.dumps(teachers, ensure_ascii=False))
+def build_html(data, teachers, h2c_js_path=None):
+    h2c_path = h2c_js_path or H2C_JS
+    h2c_src = h2c_path.read_text(encoding="utf-8") if h2c_path.exists() else "// html2canvas missing"
+    html = TEMPLATE.replace("__HTML2CANVAS__", h2c_src)
+    html = html.replace("__DATA__",     json.dumps(data,     ensure_ascii=False))
+    html = html.replace("__TEACHERS__", json.dumps(teachers, ensure_ascii=False))
+    return html
 
-with open(HTML_PATH, "w", encoding="utf-8") as f:
-    f.write(html)
-
-print(f"[ok] 已寫出 {HTML_PATH}")
-print(f"     資料：{len(data)} 筆課程 / {len(teachers)} 位老師")
+if __name__ == "__main__":
+    with open(CSV_PATH, encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    data, teachers = build_data_and_teachers(rows)
+    html = build_html(data, teachers)
+    with open(HTML_PATH, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"[ok] 已寫出 {HTML_PATH}")
+    print(f"     資料：{len(data)} 筆課程 / {len(teachers)} 位老師")
