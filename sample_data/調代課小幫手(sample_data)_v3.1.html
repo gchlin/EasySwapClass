@@ -1470,7 +1470,7 @@ const TOUR_STEPS = [
   {
     targetId: "schedule",
     title: "第 4 步：選擇可以調換的課",
-    body: "課表中出現可調課的時段（藍色格子）。點擊其中一個完成調課配對。",
+    body: "課表中出現可調課的時段（橘色格子）。點擊其中一個完成調課配對。",
     nextAction: "_tourClickFirstSwapOption",
     restoreActions: ["_tourClickFirstCell", "_tourClickFirstCandidate"],
   },
@@ -1563,22 +1563,20 @@ function tourNext() {
   const step = TOUR_STEPS[_tourStep];
   if (step.isLast) { closeTour(); return; }
 
-  const doAdvance = () => {
-    _tourTimer = null;
+  if (step.nextDelay) {
+    // 先立即執行點擊動作，使用者看到效果後再等一秒才換頁
+    if (step.nextAction) _tourRunAction(step.nextAction);
+    document.getElementById("tour-next").disabled = true;
+    _tourTimer = setTimeout(() => {
+      _tourTimer = null;
+      document.getElementById("tour-next").disabled = false;
+      _tourStep++;
+      _showTourStep();
+    }, step.nextDelay);
+  } else {
     if (step.nextAction) _tourRunAction(step.nextAction);
     _tourStep++;
     _showTourStep();
-  };
-
-  if (step.nextDelay) {
-    // 按鈕先 disable，延遲後自動觸發
-    document.getElementById("tour-next").disabled = true;
-    _tourTimer = setTimeout(() => {
-      document.getElementById("tour-next").disabled = false;
-      doAdvance();
-    }, step.nextDelay);
-  } else {
-    doAdvance();
   }
 }
 
@@ -1621,7 +1619,7 @@ if (!localStorage.getItem("tourDone")) setTimeout(startTour, 600);
       <button class="tour-skip" onclick="closeTour()">略過說明</button>
       <div style="display:flex; gap:0.4em; align-items:center">
         <button class="btn" id="tour-prev" onclick="tourPrev()"
-          style="background:var(--muted); visibility:hidden">上一步</button>
+          style="visibility:hidden">上一步</button>
         <button class="btn" id="tour-next" onclick="tourNext()">下一步</button>
       </div>
     </div>
