@@ -14,11 +14,14 @@ venv/
 Thumbs.db
 desktop.ini
 
-# Private schedule source files
-/source/
+# Private schedule source files (PDFs and raw data)
+/source/*
+!/source/README.md
 
 # Private tabular data anywhere in the repository
+# Exception: sample_data/ is fully anonymised and safe to commit.
 *.csv
+!/sample_data/*.csv
 
 # Natural science files are private and should not be uploaded at all.
 /natural_science/
