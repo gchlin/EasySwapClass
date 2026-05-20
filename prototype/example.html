@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>純文字符號切換範例</title>
+</head>
+<body style="font-family: sans-serif; padding: 30px;">
+
+    <!-- 步驟一按鈕 -->
+    <button onclick="startGuide()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
+        第一步：按下去開始引導
+    </button>
+
+    <!-- 提示文字區塊：預設先隱藏 -->
+    <div id="guide-box" style="display: none; margin-top: 20px; font-size: 18px; color: #333;">
+        ➔ 接下來請進行下一步 <span id="symbol">●</span>
+    </div>
+
+    <script>
+        function startGuide() {
+            // 1. 先把提示文字區塊顯示出來
+            document.getElementById('guide-box').style.display = 'block';
+            
+            const symbolElement = document.getElementById('symbol');
+            let count = 0; // 紀錄切換了幾次
+
+            // 2. 設定每 500 毫秒（0.5秒）執行一次切換
+            const timer = setInterval(function() {
+                // 如果目前的文字是實心，就換成空心；反之亦然
+                if (symbolElement.innerText === "●") {
+                    symbolElement.innerText = "○";
+                } else {
+                    symbolElement.innerText = "●";
+                }
+
+                count++;
+
+                // 3. 重覆兩次（實➔空、空➔實、實➔空、空➔實，總共切換 4 次）後停止
+                if (count >= 4) {
+                    clearInterval(timer); // 刪除定時器，讓它徹底靜止
+                }
+            }, 500); 
+        }
+    </script>
+
+</body>
+</html>
+
+<p style="color: #718096; font-size: 14px; letter-spacing: 0.5px;">
+    有任何合作想法或物理教學討論？歡迎 
+    <a href="mailto:your-email@example.com" style="color: #2d3748; font-weight: 600; text-decoration: none; border-bottom: 1px solid #2d3748; padding-bottom: 2px; transition: 0.2s;">
+        與我聯絡 &#10142;
+    </a>
+</p>
+
+
+<a href="mailto:your-email@example.com" 
+   style="display: inline-block; padding: 6px 14px; font-size: 13px; color: #4a5568; background-color: #edf2f7; border-radius: 20px; text-decoration: none; font-weight: 500; transition: background 0.2s;">
+    ✉ Letter to Author
+</a>
