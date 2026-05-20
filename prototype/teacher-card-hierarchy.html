@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>有空老師卡片 — 文字層次調整</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  body {
+    margin: 0; padding: 24px;
+    background: #eef2f7;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    max-width: 1400px; margin: 0 auto;
+  }
+  .case { display: flex; flex-direction: column; gap: 10px; }
+  .case-label {
+    display: flex; align-items: baseline; gap: 10px;
+    font-size: 13px; color: #475569;
+  }
+  .case-label b { font-size: 14px; color: #0f172a; font-weight: 800; }
+  .case-label .note { color: #64748b; }
+
+  /* ============================================================
+     共用：元件結構與顏色保持原樣，每個版本只改字體屬性
+     ============================================================ */
+  .card * { box-sizing: border-box; }
+  .card button { font-family: inherit; cursor: pointer; }
+
+  .card {
+    --primary: #2563eb;
+    --partner: #ea580c;
+    --text: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --panel: #fff3df;
+    --soft: #f3f4f6;
+    background: var(--panel);
+    border: 1px solid var(--partner);
+    border-radius: 6px;
+    padding: 16px;
+    color: var(--text);
+  }
+  .card .header { display: grid; padding-bottom: 18px; }
+  .card .header h1 { margin: 0; }
+  .card .header .legend { margin: 0; color: var(--muted); }
+  .card .header .legend .homeroom { color: #dc2626; font-weight: 800; }
+  .card .header .legend .same-subject { color: #16a34a; font-weight: 800; }
+
+  .card .instruction { display: grid; margin: 0 0 14px; color: #9a3412; }
+  .card .instruction div { margin: 0; }
+
+  .card .candidate-section { display: grid; gap: 10px; margin-top: 10px; }
+  .card .candidate-group { display: grid; gap: 8px; }
+  .card .group-title { margin: 0; color: var(--muted); }
+
+  .card .button-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .card .teacher-button, .card .action-button {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 38px; padding: 7px 14px;
+    border-radius: 5px; border: 1px solid var(--primary);
+    background: white; color: var(--primary);
+    font-family: inherit; line-height: 1.2;
+    white-space: nowrap;
+  }
+  .card .teacher-button.is-selected {
+    border-color: var(--partner); background: var(--partner);
+    color: white; font-weight: 800;
+  }
+  .card .teacher-button .meta { margin-left: 4px; opacity: 0.76; }
+  .card .teacher-button .homeroom { margin-left: 6px; color: #dc2626; font-weight: 800; }
+  .card .teacher-button.is-selected .homeroom { color: white; }
+
+  .card .collapsible {
+    display: flex; align-items: center; min-height: 40px; margin-top: 2px;
+    padding: 8px 10px; border-radius: 5px; background: var(--soft);
+    color: #4b5563;
+  }
+  .card .action-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 14px; }
+  .card .action-button { padding: 9px 16px; }
+  .card .action-button.primary {
+    border-color: var(--primary); background: var(--primary);
+    color: white; font-weight: 700;
+  }
+
+  /* ============================================================
+     V0 — 原版的文字設定（保留為基準）
+     ============================================================ */
+  .v0 { line-height: 1.5; }
+  .v0 .header { gap: 6px; }
+  .v0 .header h1 { font-size: 18px; font-weight: 800; line-height: 1.25; }
+  .v0 .header .legend { font-size: 15px; }
+  .v0 .instruction { gap: 2px; font-size: 17px; font-weight: 800; line-height: 1.5; }
+  .v0 .group-title { font-size: 16px; font-weight: 500; }
+  .v0 .teacher-button { font-size: 16px; }
+  .v0 .teacher-button .meta { font-size: 14px; }
+  .v0 .collapsible { font-size: 16px; }
+  .v0 .action-button { font-size: 16px; }
+
+  /* ============================================================
+     V1 ─ 標題壓場、副本退讓、群組標題拉重
+     主要動作：
+     · h1 18→26、行高拉緊；下方加一條 14px 副本 (legend) 縮為 13px
+     · instruction 17/800 → 16/700 並用 1.7 行高，動詞前置
+     · group-title 16/500 灰 → 17/800 深字 + 12px 全大寫小副標
+     · 按鈕主字級 16 → 15，meta 14 → 12，讓主名/科目兩級分開
+     ============================================================ */
+  .v1 { line-height: 1.55; }
+  .v1 .header { gap: 8px; padding-bottom: 16px;
+                border-bottom: 1px solid rgba(154,52,18,0.18); margin-bottom: 14px; }
+  .v1 .header h1 {
+    font-size: 26px; font-weight: 900; line-height: 1.15;
+    letter-spacing: -0.01em; color: #1c1917;
+  }
+  .v1 .header .legend {
+    font-size: 13px; line-height: 1.6; color: #78716c;
+  }
+
+  .v1 .instruction { gap: 4px; }
+  .v1 .instruction div {
+    font-size: 16px; font-weight: 700; line-height: 1.7; color: #9a3412;
+  }
+  .v1 .instruction div b {
+    font-weight: 900; color: #7c2d12;
+    margin-right: 6px;
+  }
+
+  .v1 .candidate-section { gap: 18px; margin-top: 16px; }
+  .v1 .group-title {
+    font-size: 17px; font-weight: 800; color: #1c1917; line-height: 1.2;
+    margin-bottom: 2px;
+  }
+  .v1 .group-title small {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px; font-weight: 600; color: #a8a29e;
+    letter-spacing: 0.06em;
+  }
+
+  .v1 .teacher-button { font-size: 15px; font-weight: 700; }
+  .v1 .teacher-button .meta { font-size: 12px; font-weight: 500; opacity: 0.7; }
+  .v1 .collapsible { font-size: 14px; font-weight: 600; }
+  .v1 .action-row { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(154,52,18,0.18); }
+  .v1 .action-button { font-size: 15px; font-weight: 600; }
+  .v1 .action-button.primary { font-weight: 800; }
+
+  /* ============================================================
+     V2 ─ 雙層標題（kicker + h1）、指令做動詞/受詞兩段
+     主要動作：
+     · 加一行 12px 全大寫 kicker「代課媒合」放 h1 上面
+     · h1 24/900；legend 重寫成兩行，色塊符號自然嵌進句子
+     · instruction 從兩條粗橘字 → 「動詞 13/800 全大寫 + 內文 16/500 深字」
+     · group-title 拆成「優先 1 12/800 小字」+「主標題 17/800」
+     · meta 用 12px tabular-nums 對齊
+     ============================================================ */
+  .v2 { line-height: 1.5; }
+  .v2 .header { gap: 4px; padding-bottom: 18px; }
+  .v2 .header .kicker {
+    margin: 0 0 4px;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.22em;
+    color: #c2410c; text-transform: uppercase;
+  }
+  .v2 .header h1 {
+    font-size: 24px; font-weight: 900; line-height: 1.2;
+    letter-spacing: -0.005em; color: #1c1917;
+  }
+  .v2 .header .legend {
+    margin-top: 8px;
+    font-size: 13px; line-height: 1.7; color: #6b7280;
+  }
+
+  .v2 .instruction { gap: 6px; margin-bottom: 18px; }
+  .v2 .instruction div {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    align-items: baseline; gap: 12px;
+    font-size: 16px; font-weight: 500; line-height: 1.5; color: #1c1917;
+  }
+  .v2 .instruction div::before {
+    font-size: 12px; font-weight: 800; letter-spacing: 0.14em;
+    color: #c2410c;
+  }
+  .v2 .instruction div:nth-child(1)::before { content: "STEP 1 ↑"; }
+  .v2 .instruction div:nth-child(2)::before { content: "STEP 2 ↓"; }
+  .v2 .instruction div b { font-weight: 800; color: #9a3412; }
+
+  .v2 .candidate-section { gap: 16px; margin-top: 14px; }
+  .v2 .group-title {
+    display: grid; gap: 2px;
+    font-size: 17px; font-weight: 800; color: #1c1917; line-height: 1.25;
+  }
+  .v2 .group-title::before {
+    content: attr(data-rank);
+    font-size: 11px; font-weight: 800; letter-spacing: 0.18em;
+    color: #c2410c; text-transform: uppercase;
+  }
+  .v2 .group-title .sub {
+    font-size: 13px; font-weight: 500; color: #6b7280;
+  }
+
+  .v2 .teacher-button {
+    font-size: 15px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .v2 .teacher-button .meta { font-size: 12px; font-weight: 500; opacity: 0.72; }
+  .v2 .collapsible { font-size: 14px; font-weight: 600; }
+  .v2 .action-button { font-size: 15px; font-weight: 600; }
+  .v2 .action-button.primary { font-weight: 800; }
+
+  /* ============================================================
+     V3 ─ 把粗橘指令降階成「淡色說明」、讓清單變主角
+     主要動作：
+     · h1 22/900；legend 改成兩行條列式，每行靠彩色標記引導
+     · instruction 不再用粗橘字搶戲，改成 13/600 暖灰，分行清楚
+     · group-title 17/800、加入序號 prefix「① ②」做視覺錨點
+     · 按鈕主字級 16、meta 12，留白多
+     ============================================================ */
+  .v3 { line-height: 1.55; }
+  .v3 .header { gap: 10px; padding-bottom: 16px; }
+  .v3 .header h1 {
+    font-size: 22px; font-weight: 900; line-height: 1.25; color: #1c1917;
+  }
+  .v3 .header .legend {
+    display: grid; gap: 2px;
+    font-size: 13px; line-height: 1.6; color: #6b7280;
+  }
+  .v3 .header .legend .row {
+    display: grid; grid-template-columns: 76px 1fr; gap: 8px;
+  }
+  .v3 .header .legend .row .k { font-weight: 800; }
+
+  .v3 .instruction { gap: 2px; margin: 0 0 16px; }
+  .v3 .instruction div {
+    font-size: 13px; font-weight: 600; line-height: 1.7;
+    color: #9a8478; letter-spacing: 0.02em;
+  }
+  .v3 .instruction div b {
+    font-weight: 800; color: #9a3412; margin-right: 4px;
+  }
+
+  .v3 .candidate-section { gap: 16px; margin-top: 12px; }
+  .v3 .group-title {
+    font-size: 17px; font-weight: 800; color: #1c1917; line-height: 1.3;
+  }
+  .v3 .group-title .n {
+    margin-right: 6px;
+    color: #c2410c; font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+  .v3 .group-title .sub {
+    display: block; margin-top: 2px;
+    font-size: 13px; font-weight: 500; color: #78716c;
+  }
+
+  .v3 .teacher-button { font-size: 16px; font-weight: 700; }
+  .v3 .teacher-button .meta { font-size: 12px; font-weight: 500; opacity: 0.7; }
+  .v3 .collapsible { font-size: 14px; font-weight: 600; }
+  .v3 .action-button { font-size: 15px; font-weight: 600; }
+  .v3 .action-button.primary { font-weight: 800; }
+
+</style>
+</head>
+<body>
+
+<div class="grid">
+
+  <!-- ===================== V0 原版（對照） ===================== -->
+  <div class="case">
+    <div class="case-label">
+      <b>V0 · 原版</b>
+      <span class="note">所有文字大小／字重相近，缺少層次</span>
+    </div>
+    <article class="card v0">
+      <header class="header">
+        <h1>這節有空的老師</h1>
+        <p class="legend">
+          候選人卡片：<span class="homeroom">（導師）</span> = 該班導師、<span class="same-subject">★</span> = 同科目老師、括號內顯示科目。
+        </p>
+      </header>
+      <div class="instruction">
+        <div>要調課: 在上方↑選擇要調課的時段</div>
+        <div>要代課: 在下方↓點「確認代課」</div>
+      </div>
+      <section class="candidate-section">
+        <div class="candidate-group">
+          <h2 class="group-title">第一優先: 也是相同任課班級的老師</h2>
+          <div class="button-row">
+            <button class="teacher-button is-selected" type="button">藝術師60 <span class="meta">(音樂科)</span></button>
+            <button class="teacher-button" type="button">數學師50 <span class="meta">(數學科)</span></button>
+            <button class="teacher-button" type="button">國文師50 <span class="meta">(國文科)</span></button>
+            <button class="teacher-button" type="button">特教師60 <span class="meta">(輔導／生命教育)</span></button>
+            <button class="teacher-button" type="button">數學師51 <span class="meta">(數學科)</span></button>
+            <button class="teacher-button" type="button">特教師61 <span class="meta">(德語)</span></button>
+          </div>
+        </div>
+        <div class="candidate-group">
+          <h2 class="group-title">第二優先: 也是自然科的老師 ★表示物理科</h2>
+          <div class="button-row">
+            <button class="teacher-button" type="button">自然師51 <span class="homeroom">（導師）</span> <span class="meta">(化學科)</span></button>
+            <button class="teacher-button" type="button">自然師52 <span class="meta">(生物科)</span></button>
+          </div>
+        </div>
+        <div class="collapsible">▶ 其他科別選擇</div>
+      </section>
+      <div class="action-row">
+        <button class="action-button primary" type="button">確認代課</button>
+        <button class="action-button" type="button">取消</button>
+      </div>
+    </article>
+  </div>
+
+  <!-- ===================== V1 標題壓場 + 副本退讓 ===================== -->
+  <div class="case">
+    <div class="case-label">
+      <b>V1 · 標題壓場</b>
+      <span class="note">主標放大到 26px、副本縮到 13px；群組標題拉重</span>
+    </div>
+    <article class="card v1">
+      <header class="header">
+        <h1>這節有空的老師</h1>
+        <p class="legend">
+          <span class="homeroom">（導師）</span>＝該班導師　<span class="same-subject">★</span>＝同科目老師　括號內顯示任教科目
+        </p>
+      </header>
+      <div class="instruction">
+        <div><b>要調課</b>在上方↑選擇要調課的時段</div>
+        <div><b>要代課</b>在下方↓點「確認代課」</div>
+      </div>
+      <section class="candidate-section">
+        <div class="candidate-group">
+          <h2 class="group-title">
+            第一優先 · 相同任課班級的老師
+            <small>SAME CLASS</small>
+          </h2>
+          <div class="button-row">
+            <button class="teacher-button is-selected" type="button">藝術師60 <span class="meta">音樂科</span></button>
+            <button class="teacher-button" type="button">數學師50 <span class="meta">數學科</span></button>
+            <button class="teacher-button" type="button">國文師50 <span class="meta">國文科</span></button>
+            <button class="teacher-button" type="button">特教師60 <span class="meta">輔導／生命教育</span></button>
+            <button class="teacher-button" type="button">數學師51 <span class="meta">數學科</span></button>
+            <button class="teacher-button" type="button">特教師61 <span class="meta">德語</span></button>
+          </div>
+        </div>
+        <div class="candidate-group">
+          <h2 class="group-title">
+            第二優先 · 同領域（自然科）的老師
+            <small>SAME SUBJECT　★ = 物理科</small>
+          </h2>
+          <div class="button-row">
+            <button class="teacher-button" type="button">自然師51 <span class="homeroom">（導師）</span> <span class="meta">化學科</span></button>
+            <button class="teacher-button" type="button">自然師52 <span class="meta">生物科</span></button>
+          </div>
+        </div>
+        <div class="collapsible">▶ 其他科別選擇</div>
+      </section>
+      <div class="action-row">
+        <button class="action-button primary" type="button">確認代課</button>
+        <button class="action-button" type="button">取消</button>
+      </div>
+    </article>
+  </div>
+
+  <!-- ===================== V2 雙層標題 + 動詞前置 ===================== -->
+  <div class="case">
+    <div class="case-label">
+      <b>V2 · 雙層標題、動詞前置</b>
+      <span class="note">加 kicker；指令拆成「STEP 1 ↑ + 內容」、群組加 P1/P2 小字</span>
+    </div>
+    <article class="card v2">
+      <header class="header">
+        <p class="kicker">代課媒合</p>
+        <h1>這節有空的老師</h1>
+        <p class="legend">
+          <span class="homeroom">（導師）</span> 該班導師 ／ <span class="same-subject">★</span> 同科目老師<br>
+          括號內顯示任教科目
+        </p>
+      </header>
+      <div class="instruction">
+        <div>在上方選擇要調課的時段</div>
+        <div>在下方點「<b>確認代課</b>」</div>
+      </div>
+      <section class="candidate-section">
+        <div class="candidate-group">
+          <h2 class="group-title" data-rank="優先 1 / PRIORITY 1">
+            相同任課班級的老師
+            <span class="sub">同樣帶這個班，最優先候選</span>
+          </h2>
+          <div class="button-row">
+            <button class="teacher-button is-selected" type="button">藝術師60 <span class="meta">音樂科</span></button>
+            <button class="teacher-button" type="button">數學師50 <span class="meta">數學科</span></button>
+            <button class="teacher-button" type="button">國文師50 <span class="meta">國文科</span></button>
+            <button class="teacher-button" type="button">特教師60 <span class="meta">輔導／生命教育</span></button>
+            <button class="teacher-button" type="button">數學師51 <span class="meta">數學科</span></button>
+            <button class="teacher-button" type="button">特教師61 <span class="meta">德語</span></button>
+          </div>
+        </div>
+        <div class="candidate-group">
+          <h2 class="group-title" data-rank="優先 2 / PRIORITY 2">
+            同領域（自然科）的老師
+            <span class="sub">★ 表示物理科</span>
+          </h2>
+          <div class="button-row">
+            <button class="teacher-button" type="button">自然師51 <span class="homeroom">（導師）</span> <span class="meta">化學科</span></button>
+            <button class="teacher-button" type="button">自然師52 <span class="meta">生物科</span></button>
+          </div>
+        </div>
+        <div class="collapsible">▶ 其他科別選擇</div>
+      </section>
+      <div class="action-row">
+        <button class="action-button primary" type="button">確認代課</button>
+        <button class="action-button" type="button">取消</button>
+      </div>
+    </article>
+  </div>
+
+  <!-- ===================== V3 降階指令 + 序號錨點 ===================== -->
+  <div class="case">
+    <div class="case-label">
+      <b>V3 · 指令降階、清單為主</b>
+      <span class="note">粗橘指引縮成淡色提示；群組加序號錨點</span>
+    </div>
+    <article class="card v3">
+      <header class="header">
+        <h1>這節有空的老師</h1>
+        <div class="legend">
+          <div class="row"><span class="k homeroom">（導師）</span><span>該班導師</span></div>
+          <div class="row"><span class="k same-subject">★</span><span>同科目老師</span></div>
+          <div class="row"><span class="k">（　）</span><span>括號內顯示任教科目</span></div>
+        </div>
+      </header>
+      <div class="instruction">
+        <div><b>要調課</b>請於上方 ↑ 選擇要調課的時段</div>
+        <div><b>要代課</b>請於下方 ↓ 點「確認代課」</div>
+      </div>
+      <section class="candidate-section">
+        <div class="candidate-group">
+          <h2 class="group-title">
+            <span class="n">①</span>相同任課班級的老師
+            <span class="sub">最優先候選 — 同樣帶這個班</span>
+          </h2>
+          <div class="button-row">
+            <button class="teacher-button is-selected" type="button">藝術師60 <span class="meta">音樂科</span></button>
+            <button class="teacher-button" type="button">數學師50 <span class="meta">數學科</span></button>
+            <button class="teacher-button" type="button">國文師50 <span class="meta">國文科</span></button>
+            <button class="teacher-button" type="button">特教師60 <span class="meta">輔導／生命教育</span></button>
+            <button class="teacher-button" type="button">數學師51 <span class="meta">數學科</span></button>
+            <button class="teacher-button" type="button">特教師61 <span class="meta">德語</span></button>
+          </div>
+        </div>
+        <div class="candidate-group">
+          <h2 class="group-title">
+            <span class="n">②</span>同領域（自然科）的老師
+            <span class="sub">★ 表示物理科</span>
+          </h2>
+          <div class="button-row">
+            <button class="teacher-button" type="button">自然師51 <span class="homeroom">（導師）</span> <span class="meta">化學科</span></button>
+            <button class="teacher-button" type="button">自然師52 <span class="meta">生物科</span></button>
+          </div>
+        </div>
+        <div class="collapsible">▶ 其他科別選擇</div>
+      </section>
+      <div class="action-row">
+        <button class="action-button primary" type="button">確認代課</button>
+        <button class="action-button" type="button">取消</button>
+      </div>
+    </article>
+  </div>
+
+</div>
+
+</body>
+</html>
