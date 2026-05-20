@@ -153,7 +153,7 @@ TEMPLATE = r"""<!DOCTYPE html>
   }
   td.cell-confirmed-leave-swap {
     background: #fde68a; border: 2px solid #b45309;
-    color: #78350f; font-weight: 500;
+    color: #010101; font-weight: 500;
   }
   td.cell-confirmed-swap-in {
     background: #d1fae5; border: 2px solid var(--swap);
@@ -195,6 +195,35 @@ TEMPLATE = r"""<!DOCTYPE html>
     margin-bottom: 0.5em;
     font-size: 0.95em;
   }
+  .panel-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45em;
+    flex-wrap: wrap;
+    color: #111827;
+    font-weight: 700;
+  }
+  .panel-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: var(--primary);
+    font-size: 0.78em;
+    font-weight: 600;
+  }
+  .panel-guide {
+    margin-top: 0.2em;
+    color: var(--muted);
+    font-size: 0.82em;
+  }
+  .panel-guide .guide-hr { color: #dc2626; font-weight: 700; }
+  .panel-guide .guide-star { color: #16a34a; font-weight: 700; }
+  .panel-note {
+    margin-top: 0.3em;
+    color: #5b21b6;
+    font-size: 0.86em;
+  }
   .candidate-group { margin: 0.4em 0; }
   .candidate-group h3 {
     margin: 0.3em 0 0.2em;
@@ -214,14 +243,6 @@ TEMPLATE = r"""<!DOCTYPE html>
   .caret { display: inline-block; width: 0.8em; transition: transform 0.15s; }
   .caret.collapsed { transform: rotate(-90deg); }
   .group-body[hidden] { display: none; }
-  .panel-search {
-    width: 100%;
-    padding: 0.4em 0.6em;
-    margin: 0.4em 0;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 0.95em;
-  }
   .candidate-subgroup { margin: 0.15em 0 0.15em 0.6em; }
   .candidate-subgroup h4 {
     display: inline-block;
@@ -250,12 +271,19 @@ TEMPLATE = r"""<!DOCTYPE html>
     background: var(--partner); color: white; border-color: var(--partner);
     font-weight: bold;
   }
+  #find-partner-hint .hint-keyword {
+    cursor: default;
+    margin: 0 0.1em;
+    background: white;
+  }
+  #find-partner-hint .hint-keyword:hover { background: white; }
 
   .legend {
     display: flex; flex-wrap: wrap; gap: 0.5em;
     font-size: 0.8em; margin: 0.4em 0;
   }
-  .legend span { padding: 2px 8px; border-radius: 3px; border: 1px solid; }
+  .legend span,
+  .legend-chip { padding: 2px 8px; border-radius: 3px; border: 1px solid; }
   .lg-yellow { background: #fef9c3; border-color: #ca8a04; color: #713f12; }
   .lg-leave { background: var(--leave); border-color: #b45309; color: white; }
   .lg-swap-opt { background: #ffedd5; border-color: var(--partner); color: #9a3412; }
@@ -310,52 +338,81 @@ TEMPLATE = r"""<!DOCTYPE html>
     }
     .cand-btn { font-size: 0.85em; padding: 0.4em 0.7em; }
   }
+
+  /* ── 資料版本確認視窗 ──────────────────────── */
+  #version-modal {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #version-modal .modal-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.4em 1.6em 1.2em;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 4px 28px rgba(0,0,0,0.28);
+  }
+  #version-modal .modal-card h2 {
+    margin: 0 0 0.3em; color: var(--primary); font-size: 1.2em;
+  }
+  #version-modal .modal-card .modal-sub {
+    color: var(--muted); font-size: 0.8em; margin: 0 0 1em;
+  }
+
 </style>
 </head>
 <body>
 
-<h1>尋找調代課小幫手 <span style="font-size:0.45em; color:var(--muted); font-weight:normal; vertical-align:middle">資料版本 114-2 · chaher@dysh.tyc.edu.tw × Claude Code</span></h1>
+
+<h1>尋找調代課小幫手 <button class="help-btn" data-target="help-title">ⓘ 說明</button></h1>
+<div id="help-title" class="help-body" hidden>
+  <p>● 操作流程：1.選你自己 2.看課表選時段 3.選調課老師 4.完成分享訊息</p>
+</div>
 
 <section>
   <h2>1. 我是誰</h2>
   <button class="help-btn" data-target="help-1">ⓘ 說明</button>
   <div id="help-1" class="help-body" hidden>
-    <p>瀏覽器會記住上次選擇，下次打開直接是你；下拉選單依主授科目分組。</p>
-    <p>要書籤化「自己」這個身分：在網址後加 <code>#代號</code>（例如 <code>#N60</code>）。</p>
+    <p>● 瀏覽器會記得你，下次打開直接是你。</p>
+    <p>● 要書籤化「自己」這個身分：在網址後加 <code>#代號</code>（例如 <code>#N60</code>）。</p>
   </div>
-  <select id="teacher"></select>
-  <input type="search" id="teacher-search" placeholder="輸入姓名或代號快速過濾..." autocomplete="off" style="margin-left:0.5em">
+  <div style="display:flex; align-items:center; gap:0.75em; flex-wrap:wrap">
+    <select id="teacher"></select>
+    <span style="color:#9a3412; font-weight:bold">↓在下方點選找要調代課的<span class="legend-chip lg-yellow">時段框框</span>↓</span>
+  </div>
   <div style="margin-top:0.5em; font-size:0.9em">
     <label style="cursor:pointer">
-      <input type="checkbox" id="ib-mode"> IB 模式（請假 IB 課時只顯示 IB 老師）
+      <input type="checkbox" id="ib-mode"> IB 模式
     </label>
   </div>
 </section>
 
-<section>
+<section id="my-schedule-section" style="display:none">
   <h2>2. 我的課表</h2>
   <button class="help-btn" data-target="help-2">ⓘ 說明</button>
   <div id="help-2" class="help-body" hidden>
-    <p>● 操作流程：點請假時段 → 點代課人選 → 點調課時段或按代課。</p>
-    <p>● 點黃色格子＝請假該時段；再點同一格取消。</p>
-    <p>● 點已確認的格子可退回「選代課人」那步；再點請假格子才完全取消。</p>
-    <p>● 紫色粗框＝連堂課（探究 / IPSS）的提醒，不是禁止。連堂時候選會多一個「兩節都能代的老師」群組（不論科目）。</p>
-    <p>● 候選人按鈕：紅字「（導師）」=該班導師、綠色 ★ = 同子科老師（如同為物理）；括號內顯示子科。</p>
+    <p>● 點黃色格子＝請假該時段，再點一次取消。</p>
+    <p>● 確認後的格子再點一次也可以取消。</p>
+    <p>● 紫色粗框＝連堂課，兩堂都點，才能找兩節都有空的老師。</p>
   </div>
-  <p style="color:#dc2626; font-weight:bold; margin:0.3em 0 0.4em;">注意：本程式只依據課表時段提出可能調代課選項，請留意可能還有其他慣例規則</p>
+  <p style="color:#dc2626; font-weight:bold; margin:0.3em 0 0.4em;"></p>
   <div id="legend" class="legend" style="margin:0.4em 0"></div>
   <div style="margin: 0.4em 0; font-size:0.9em">
-    顯示日期來輔助：
+    顯示日期：
     <select id="date-mode" style="font-size:0.9em; padding:0.25em 0.4em; min-width:auto">
-      <option value="none">也可以不顯示</option>
+      <option value="none">不顯示</option>
       <option value="this">當週</option>
       <option value="next">下週</option>
     </select>
+    <span id="find-partner-hint" hidden style="margin-left:0.6em; color:#2563eb; font-weight:bold"><span class="hint-arrow">↓</span>在下方找調代課<span class="hint-keyword cand-btn pri-1">老師</span><span class="hint-arrow">↓</span></span>
   </div>
   <table class="schedule" id="schedule"></table>
   <div id="panel" style="display:none"></div>
   <div style="margin-top:0.6em">
     <button class="danger" id="reset-btn">清除全部已選方案</button>
+    <span id="post-confirm-hint" hidden style="margin-left:0.5em; font-size:0.9em; color:var(--swap)"><br>完成，↑可以再點下一節要請假的時段↑；↓也可以下方確認課表↓</span>
   </div>
 </section>
 
@@ -363,12 +420,21 @@ TEMPLATE = r"""<!DOCTYPE html>
   <h2>3. 對方課表</h2>
   <button class="help-btn" data-target="help-3">ⓘ 說明</button>
   <div id="help-3" class="help-body" hidden>
-    <p>每位對方一段獨立的「訊息」「按鈕」「課表」。</p>
+    <p>● 每位對方一段獨立的「訊息」「按鈕」「課表」。</p>
     <p>● 訊息：可複製到 LINE / 分享給對方（手機可直接喚起分享面板）。</p>
     <p>● 截圖：把對方課表存成 PNG。手機自動開分享面板，桌面則下載檔案。</p>
-    <p>● 日期：依「顯示日期來輔助」的選擇；選「也可以不顯示」時，週一~五自動用當週、週六日用下週。</p>
+    <p>● 日期：依「顯示日期來輔助」的選擇；選「不顯示」時，週一~五自動用當週、週六日用下週。</p>
   </div>
   <div id="partner-schedules"></div>
+</section>
+
+<section id="self-section" style="display:none">
+  <h2>4. 自己的課表</h2>
+  <div id="self-schedule"></div>
+  <div style="margin:0.4em 0">
+    <button id="self-screenshot" style="padding:0.5em 1em">📸 截圖（自己課表）</button>
+    <span id="self-fb" style="margin-left:0.6em; font-size:0.9em; display:none"></span>
+  </div>
 </section>
 
 <script>
@@ -413,7 +479,6 @@ const state = {
   leaveSlot: null,
   partnerCode: null,
   confirmed: [],
-  search: "",                // 候選人姓名/代號過濾
   groupOverrides: {},        // 群組摺疊狀態 (label → bool); 不在此 dict 用 priority 預設
 };
 
@@ -518,6 +583,11 @@ function populateTeacherDropdown() {
   }
 }
 
+// 顯示「2. 我的課表」（選過身分後才呼叫）
+function revealMySchedule() {
+  document.getElementById("my-schedule-section").style.display = "block";
+}
+
 function init() {
   const sel = document.getElementById("teacher");
 
@@ -534,21 +604,13 @@ function init() {
     localStorage.setItem(STORAGE_KEY, hashCode);
   }
 
+  // 「2. 我的課表」一開始隱藏；曾選過身分（localStorage 或網址 #代號）才顯示
+  if (localStorage.getItem(STORAGE_KEY)) revealMySchedule();
+
   sel.addEventListener("change", () => {
     localStorage.setItem(STORAGE_KEY, sel.value);
+    revealMySchedule();
     resetState();
-  });
-  document.getElementById("teacher-search").addEventListener("change", (e) => {
-    const v = e.target.value.trim();
-    if (!v) return;
-    const upper = v.toUpperCase();
-    const m = TEACHERS.find(t => t.name === v || t.code.toUpperCase() === upper);
-    // IB 模式下若搜到非 IB 老師，dropdown 內無此 option → 忽略（不靜默切換）
-    if (m && sel.querySelector(`option[value="${CSS.escape(m.code)}"]`)) {
-      sel.value = m.code;
-      localStorage.setItem(STORAGE_KEY, m.code);
-      resetState();
-    }
   });
   // 智能預設「顯示日期來輔助」：週一~五 → 當週；週六日 → 下週
   // （使用者仍可手動改成「也可以不顯示」）
@@ -566,6 +628,7 @@ function init() {
   });
 
   document.getElementById("reset-btn").addEventListener("click", resetState);
+  document.getElementById("self-screenshot").addEventListener("click", doCaptureSelf);
 
   // 三個 section 的「ⓘ 說明」按鈕（樣式 B）
   document.querySelectorAll(".help-btn").forEach(btn => {
@@ -585,13 +648,11 @@ function resetState() {
   state.leaveSlot = null;
   state.partnerCode = null;
   state.confirmed = [];
-  state.search = "";
   state.groupOverrides = {};
   render();
 }
 
 function isGroupExpanded(g) {
-  if (state.search) return true;  // 搜尋時所有群組強制展開
   if (g.label in state.groupOverrides) return state.groupOverrides[g.label];
   return g.priority < 3;  // 預設：高優先群（連堂/同科/同班）展開，其他科摺疊
 }
@@ -603,12 +664,6 @@ function toggleGroup(label) {
   if (!g) return;
   state.groupOverrides[label] = !isGroupExpanded(g);
   render();
-}
-
-function teacherMatchesSearch(t) {
-  const q = state.search.trim().toLowerCase();
-  if (!q) return true;
-  return t.name.toLowerCase().includes(q) || t.code.toLowerCase().includes(q);
 }
 
 let currentGroups = [];  // 暫存當前 render 的 groups，給 toggleGroup 查用
@@ -723,6 +778,42 @@ function render() {
   renderLegend();
   renderPanel();
   renderPartnerSchedules();
+  renderSelfSchedule();
+  document.getElementById("post-confirm-hint").hidden = state.confirmed.length === 0;
+  // 點完請假時段後才出現「↓在下方列表找要調代課的時段」
+  document.getElementById("find-partner-hint").hidden = !state.leaveSlot;
+  updateFindPartnerHintBlink();
+}
+
+let findPartnerHintTimer = null;
+let findPartnerHintBlinkDone = false;
+function updateFindPartnerHintBlink() {
+  const hint = document.getElementById("find-partner-hint");
+  const arrows = hint ? hint.querySelectorAll(".hint-arrow") : [];
+  if (!hint || arrows.length === 0) return;
+  if (hint.hidden) {
+    if (findPartnerHintTimer) {
+      clearInterval(findPartnerHintTimer);
+      findPartnerHintTimer = null;
+    }
+    findPartnerHintBlinkDone = false;
+    arrows.forEach(a => { a.innerText = "↓"; });
+    return;
+  }
+  if (findPartnerHintTimer || findPartnerHintBlinkDone) return;
+  let alternate = false;
+  let count = 0;
+  findPartnerHintTimer = setInterval(() => {
+    arrows[0].innerText = alternate ? "↓" : "⬇";
+    arrows[1].innerText = alternate ? "⬇" : "↓";
+    alternate = !alternate;
+    count++;
+    if (count >= 4) {
+      clearInterval(findPartnerHintTimer);
+      findPartnerHintTimer = null;
+      findPartnerHintBlinkDone = true;
+    }
+  }, 500);
 }
 
 // 動態圖例：只顯示畫面上「實際出現」的格子類型，避免一開始就堆一排不知道意義的色塊
@@ -770,6 +861,60 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// 自己的課表：完成代/調課後顯示一張非互動的快照表，供截圖
+function renderSelfSchedule() {
+  const sec = document.getElementById("self-section");
+  const div = document.getElementById("self-schedule");
+  if (state.confirmed.length === 0) {
+    sec.style.display = "none";
+    div.innerHTML = "";
+    return;
+  }
+  sec.style.display = "block";
+
+  const myCode = meCode();
+  // 標記有變動的格子：請假時段、以及我代課（調課）的時段；其餘維持灰色
+  const marks = {};
+  for (const c of state.confirmed) {
+    marks[`${c.day}-${c.period}`] = { role: "my-leave", c };
+    if (c.type === "swap") {
+      marks[`${c.swapDay}-${c.swapPeriod}`] = { role: "my-cover", c };
+    }
+  }
+
+  let html = '<table class="schedule">' + buildHeader("before") + '<tbody>';
+  for (let p = 1; p <= 7; p++) {
+    html += `<tr><th>${p}</th>`;
+    for (let d = 1; d <= 5; d++) {
+      const m = marks[`${d}-${p}`];
+      const e = getEntry(myCode, d, p);
+      let cls, content;
+      if (m && m.role === "my-leave") {
+        // 我請假、由對方代的時段 → 與「對方課表」的「不用上」風格一致
+        const partner = teacherInfo(m.c.partnerCode);
+        cls = "cell-confirmed-leave-swap";
+        content = `${e.course}${e.klass ? " " + e.klass : ""}<span class="anno">⨯ 不用上 ${partner.name}代</span>`;
+      } else if (m && m.role === "my-cover") {
+        // 我去代對方課的時段 → 與「對方課表」的「代 XXX」風格一致
+        const partner = teacherInfo(m.c.partnerCode);
+        const partnerEntry = getEntry(m.c.partnerCode, d, p);
+        cls = "cell-confirmed-swap-in";
+        content = `${partnerEntry.course}${partnerEntry.klass ? " " + partnerEntry.klass : ""}<span class="anno">↻ 代 ${partner.name}</span>`;
+      } else {
+        // 沒有變動 → 灰色
+        cls = "cell-partner-context";
+        content = e ? `${e.course}${e.klass ? " " + e.klass : ""}` : "·";
+      }
+      const pos = inquiryPositionFor(myCode, d, p);
+      const inqCls = pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "";
+      html += `<td class="${cls}${inqCls}" style="cursor:default">${content}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  div.innerHTML = html;
+}
+
 function renderPartnerSchedules() {
   const sec = document.getElementById("partner-section");
   const div = document.getElementById("partner-schedules");
@@ -789,29 +934,15 @@ function renderPartnerSchedules() {
 
   let html = "";
   for (const [pcode, confs] of Object.entries(byPartner)) {
-    const partner = teacherInfo(pcode);
-    const subs = confs.filter(c => c.type === "sub");
-    const swaps = confs.filter(c => c.type === "swap");
-    const subStr = subs.map(c => `星期${DAY_NAMES[c.day]}(第${c.period}節)`).join("、");
-    const swapStr = swaps.map(c => `星期${DAY_NAMES[c.day]}(第${c.period}節) ↔ 星期${DAY_NAMES[c.swapDay]}(第${c.swapPeriod}節)`).join("、");
-    let actionPart;
-    if (subs.length > 0 && swaps.length > 0) {
-      actionPart = `代課/調課 代課 ${subStr}；調課時段: ${swapStr}`;
-    } else if (subs.length > 0) {
-      actionPart = `代課 ${subStr}`;
-    } else {
-      actionPart = `調課時段: ${swapStr}`;
-    }
     const fullText = generateSummaryForPartner(pcode, confs);
 
     html += `<div data-pcard-pcode="${pcode}" style="margin: 1em 0; padding: 0.8em; border:1px solid var(--border); border-radius:6px;">`;
-    html += `<h3 style="margin: 0 0 0.3em; color:var(--primary);">${partner.name} 老師（${partner.subject}）${actionPart}</h3>`;
     // 訊息預覽（先寫出來再讓使用者複製）
     html += `<pre style="background:#f9fafb; border:1px solid var(--border); padding:0.6em 0.8em; border-radius:4px; margin:0.4em 0; white-space:pre-wrap; word-break:break-word; font-size:0.9em; line-height:1.6; font-family:inherit;">${escapeHtml(fullText)}</pre>`;
     // 按鈕
     html += `<div style="margin:0.4em 0">`;
-    html += `<button class="primary act-copy" data-pcode="${pcode}" style="padding:0.5em 1em">📋 複製此訊息</button>`;
-    html += `<button class="act-share" data-pcode="${pcode}" style="padding:0.5em 1em">📤 分享</button>`;
+    html += `<button class="primary act-copy" data-pcode="${pcode}" style="padding:0.5em 1em">📋 複製文字訊息</button>`;
+    html += `<button class="act-share" data-pcode="${pcode}" style="padding:0.5em 1em">📤 分享文字訊息</button>`;
     html += `<button class="act-screenshot" data-pcode="${pcode}" style="padding:0.5em 1em">📸 截圖（對方課表）</button>`;
     html += `<span class="act-fb" data-pcode="${pcode}" style="margin-left:0.6em; font-size:0.9em; display:none"></span>`;
     html += `</div>`;
@@ -833,12 +964,15 @@ function renderPartnerSchedules() {
   });
 }
 
-async function doCaptureForPartner(pcode) {
-  const card = document.querySelector(`[data-pcard-pcode="${pcode}"]`);
-  if (!card) return;
-  const table = card.querySelector("table.schedule");
+function dateStamp() {
+  const t = new Date();
+  return `${t.getFullYear()}${String(t.getMonth()+1).padStart(2,"0")}${String(t.getDate()).padStart(2,"0")}`;
+}
+
+// 共用：把一張表格截圖 → 行動裝置分享 / 桌面下載。fb 是 (msg, ok) 回呼
+async function captureTable(table, fname, fb) {
   if (!table) return;
-  showFb(pcode, "處理中…", true);
+  fb("處理中…", true);
   try {
     const canvas = await html2canvas(table, {
       scale: 2,
@@ -846,17 +980,13 @@ async function doCaptureForPartner(pcode) {
       logging: false,
     });
     canvas.toBlob(async (blob) => {
-      if (!blob) { showFb(pcode, "截圖失敗", false); return; }
-      const partner = teacherInfo(pcode);
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,"0")}${String(today.getDate()).padStart(2,"0")}`;
-      const fname = `${me().name}_${partner.name}_${dateStr}.png`;
+      if (!blob) { fb("截圖失敗", false); return; }
       const file = new File([blob], fname, { type: "image/png" });
       // 行動裝置先試 Web Share API (檔案分享)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file] });
-          showFb(pcode, "分享面板已開啟", true);
+          fb("分享面板已開啟", true);
           return;
         } catch (e) {
           if (e.name === "AbortError") return;  // 使用者取消
@@ -870,12 +1000,27 @@ async function doCaptureForPartner(pcode) {
       a.download = fname;
       a.click();
       URL.revokeObjectURL(url);
-      showFb(pcode, "已下載 PNG", true);
+      fb("已下載 PNG", true);
     }, "image/png");
   } catch (err) {
     console.error(err);
-    showFb(pcode, "截圖失敗（請看 console）", false);
+    fb("截圖失敗（請看 console）", false);
   }
+}
+
+function doCaptureForPartner(pcode) {
+  const card = document.querySelector(`[data-pcard-pcode="${pcode}"]`);
+  if (!card) return;
+  const table = card.querySelector("table.schedule");
+  const partner = teacherInfo(pcode);
+  const fname = `${me().name}_${partner.name}_${dateStamp()}.png`;
+  captureTable(table, fname, (msg, ok) => showFb(pcode, msg, ok));
+}
+
+function doCaptureSelf() {
+  const table = document.querySelector("#self-schedule table.schedule");
+  const fname = `${me().name}_自己課表_${dateStamp()}.png`;
+  captureTable(table, fname, showSelfFb);
 }
 
 function feedbackEl(pcode) {
@@ -889,6 +1034,15 @@ function showFb(pcode, msg, ok) {
   el.style.display = "inline";
   el.style.color = ok ? "var(--swap)" : "#dc2626";
   setTimeout(() => { if (el) el.style.display = "none"; }, 2500);
+}
+
+function showSelfFb(msg, ok) {
+  const el = document.getElementById("self-fb");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = "inline";
+  el.style.color = ok ? "var(--swap)" : "#dc2626";
+  setTimeout(() => { el.style.display = "none"; }, 2500);
 }
 
 async function doCopyForPartner(pcode) {
@@ -1035,8 +1189,9 @@ function getCandidateGroups(leaveSlot) {
   // 同科群組標籤：含 ★ 提示同子科。若主授和細科顯示相同（國/英/數/特單一細科），就不重複加 ★ 提示
   const myDetail = myInfo.detail;
   const sameSubLabel = (myDetail && fullDet(myDetail) !== fullSub(mySub))
-    ? `同為${fullSub(mySub)}人選 ★表示同為${fullDet(myDetail)}`
-    : `同為${fullSub(mySub)}人選`;
+    ? `第二優先 · 同領域（${fullSub(mySub)}）的老師 ★表示${fullDet(myDetail)}`
+    : `第二優先 · 同領域（${fullSub(mySub)}）的老師`;
+  const sameKlassLabel = `第一優先 · 相同任課班級的老師`;
 
   if (ibLeave) {
     // IB 課程 → 找 IB 老師優先級 > 找同科。連堂群組也拆成 IB / 非 IB
@@ -1054,8 +1209,8 @@ function getCandidateGroups(leaveSlot) {
     const ibSameKlass = free.filter(t => t.isIB && !isSame(t) && isSameClass(t) && canSwapMyKlass(t.code));
     const ibSameKlassCodes = new Set(ibSameKlass.map(t => t.code));
     const ibOther = free.filter(t => t.isIB && !isSame(t) && !ibSameKlassCodes.has(t.code));
-    groups.push({ label: `IB · ${sameSubLabel}`, priority: 1, teachers: ibSameSub, kind: "sameSub" });
-    if (myKlass) groups.push({ label: `IB · 同為 ${myKlass} 班的任課老師`, priority: 2, teachers: ibSameKlass, kind: "sameKlass" });
+    if (myKlass) groups.push({ label: `IB優先 · ${sameKlassLabel}`, priority: 1, teachers: ibSameKlass, kind: "sameKlass" });
+    groups.push({ label: `IB優先 · ${sameSubLabel}`, priority: 2, teachers: ibSameSub, kind: "sameSub" });
     groups.push({ label: "IB · 其他科別選擇", priority: 3, teachers: ibOther, splitByDomain: true });
     if (!ibOnly) {
       const sameSub = free.filter(t => !t.isIB && isSame(t));
@@ -1083,8 +1238,8 @@ function getCandidateGroups(leaveSlot) {
   const sameKlassNotSub = free.filter(t => !isSame(t) && isSameClass(t) && canSwapMyKlass(t.code));
   const sameKlassCodes = new Set(sameKlassNotSub.map(t => t.code));
   const other = free.filter(t => !isSame(t) && !sameKlassCodes.has(t.code));
-  groups.push({ label: sameSubLabel, priority: 1, teachers: sameSub, kind: "sameSub" });
-  if (myKlass) groups.push({ label: `同為 ${myKlass} 班的任課老師`, priority: 2, teachers: sameKlassNotSub, kind: "sameKlass" });
+  if (myKlass) groups.push({ label: sameKlassLabel, priority: 1, teachers: sameKlassNotSub, kind: "sameKlass" });
+  groups.push({ label: sameSubLabel, priority: 2, teachers: sameSub, kind: "sameSub" });
   groups.push({ label: "其他科別選擇", priority: 3, teachers: other, splitByDomain: true });
   return groups;
 }
@@ -1112,7 +1267,27 @@ function candBtn(t, priority, leaveKlass, leaveDetail) {
   const dtTag = (isSameDetail && !isHomeroom) ? `<span style="color:var(--swap); margin-left:0.15em;">★</span>` : '';
   // 括弧內顯示細科目全名（譬如「物理科」）；無細科則 fallback 主授全名
   const labelInParen = t.detail ? fullDet(t.detail) : fullSub(t.subject);
-  return `<button class="cand-btn pri-${priority}${active ? ' active' : ''}" data-pcode="${t.code}">${t.name}${hrTag}${dtTag}<span style="font-size:0.75em; opacity:0.7"> (${labelInParen})</span></button>`;
+  return `<button class="cand-btn pri-${priority}${active ? ' active' : ''}" data-pcode="${t.code}"><strong style="font-weight:700">${t.name}</strong>${hrTag}${dtTag}<span style="font-size:0.75em; opacity:0.68; margin-left:0.25em">${labelInParen}</span></button>`;
+}
+
+function groupSubtitle(g) {
+  if (g.coverBoth) return "DOUBLE PERIOD";
+  if (g.kind === "sameKlass") return "SAME CLASS";
+  if (g.kind === "sameSub") {
+    const starHint = (g.label.match(/★表示(.+)$/) || [])[1];
+    return starHint ? `SAME SUBJECT　★ = ${starHint}` : "SAME SUBJECT";
+  }
+  if (g.splitByDomain) return "OTHER SUBJECTS";
+  return "";
+}
+
+function groupTitleHtml(g, caretHtml) {
+  const label = escapeHtml(g.label).replace(/\s*★表示.+$/, "");
+  const subtitle = groupSubtitle(g);
+  const subHtml = subtitle
+    ? `<small style="display:block; margin-top:0.2em; font-size:0.78em; font-weight:600; color:#9ca3af; letter-spacing:0.04em;">${escapeHtml(subtitle)}</small>`
+    : "";
+  return `${caretHtml}<span style="font-size:1.18em; font-weight:800; color:#1c1917; line-height:1.2;">${label}</span>${subHtml}`;
 }
 
 function renderGroups(groups, leaveKlass, leaveDetail) {
@@ -1120,24 +1295,20 @@ function renderGroups(groups, leaveKlass, leaveDetail) {
   let html = '';
   for (const g of groups) {
     const expanded = isGroupExpanded(g);
-    const filteredTeachers = g.teachers.filter(teacherMatchesSearch);
-    const total = filteredTeachers.length;
-    // 搜尋時若該群組無符合，整個群組隱藏
-    if (state.search && total === 0) continue;
 
     const headerCls = (g.priority >= 3) ? "collapsible" : "";
     const caretHtml = (g.priority >= 3) ? `<span class="caret${expanded ? '' : ' collapsed'}">▼</span> ` : '';
     const dataAttr = (g.priority >= 3) ? `data-toggle-label="${escapeHtml(g.label)}"` : '';
     html += `<div class="candidate-group">`;
-    html += `<h3 class="${headerCls}" ${dataAttr}>${caretHtml}${g.label}（${total} 人選）</h3>`;
+    html += `<h3 class="${headerCls}" ${dataAttr}>${groupTitleHtml(g, caretHtml)}</h3>`;
     html += `<div class="group-body" ${expanded ? '' : 'hidden'}>`;
 
     if (g.splitByDomain) {
-      if (total === 0) {
+      if (g.teachers.length === 0) {
         html += `<span style="color:var(--muted); font-size:0.9em">無</span>`;
       } else {
         for (const sub of SUBJECT_ORDER) {
-          const subT = sortCandidates(filteredTeachers.filter(t => t.subject === sub), leaveKlass, leaveDetail);
+          const subT = sortCandidates(g.teachers.filter(t => t.subject === sub), leaveKlass, leaveDetail);
           if (subT.length === 0) continue;
           html += `<div class="candidate-subgroup"><h4>${sub}</h4>`;
           for (const t of subT) html += candBtn(t, g.priority, leaveKlass, leaveDetail);
@@ -1145,13 +1316,13 @@ function renderGroups(groups, leaveKlass, leaveDetail) {
         }
       }
     } else {
-      const sorted = sortCandidates(filteredTeachers, leaveKlass, leaveDetail);
+      const sorted = sortCandidates(g.teachers, leaveKlass, leaveDetail);
       if (sorted.length === 0) {
-        let emptyMsg = "該時段都有課";
-        if (g.kind === "sameKlass") emptyMsg = "該時段 此班級的任課老師都在上課，沒有選擇";
+        let emptyMsg = "都在上課";
+        if (g.kind === "sameKlass") emptyMsg = "這班的老師這節都在上課";
         else if (g.kind === "sameSub") {
           const meInfo = teacherInfo(meCode());
-          emptyMsg = `該時段 ${fullSub(meInfo.subject)}同事都在上課，沒有選擇`;
+          emptyMsg = `${fullSub(meInfo.subject)}老師這節都在上課`;
         }
         html += `<span style="color:var(--muted); font-size:0.9em">${emptyMsg}</span>`;
       } else {
@@ -1183,24 +1354,26 @@ function renderPanel() {
 
   let html = '';
   html += `<div id="panel-status">`;
-  html += `<strong>以下是時間允許調課代課的老師選擇</strong>`;
+  html += `<div class="panel-title"><span style="font-size:1.3em; font-weight:900; line-height:1.15; color:#1c1917;">這節有空的老師</span>`;
   if (ibLeave) {
     const ibOnly = document.getElementById("ib-mode").checked;
-    const ibLabel = ibOnly ? "（IB 課程 · IB 模式：只列 IB 老師）" : "（IB 課程）";
-    html += ` <span style="color:var(--partner); font-size:0.85em">${ibLabel}</span>`;
+    const ibLabel = ibOnly ? "IB 課程 · 只列 IB 老師" : "IB 課程";
+    html += `<span class="panel-badge">${ibLabel}</span>`;
   }
+  html += `</div>`;
+  html += `<div class="panel-guide" style="font-size:0.82em; color:#78716c; line-height:1.6;"><span class="guide-hr">（導師）</span>＝該班導師　<span class="guide-star">★</span>＝同科目老師　右側小字顯示任教科目</div>`;
   if (paired) {
     const lo = Math.min(ls.period, paired);
     const hi = Math.max(ls.period, paired);
-    html += `<br><span style="color:#7c3aed; font-size:0.9em">⚠️ 此為連堂（第 ${lo}-${hi} 節）。下方「兩節都能代的老師」可一人代完整段；要拆兩位代請分開處理。</span>`;
+    html += `<div class="panel-note">⚠️ 這是連堂第 ${lo}-${hi} 節。「兩節都能代的老師」可一人代兩節；要分兩位代，就分開處理。</div>`;
   }
   if (state.mode === "partnerSelected") {
     const p = teacherInfo(state.partnerCode);
     const partnerCoversBoth = paired && !isOccupied(state.partnerCode, ls.day, paired);
     if (partnerCoversBoth) {
-      html += `<br><strong style="color:var(--partner)">（${p.name} 老師 兩節都空堂，可一次代完整段）</strong>`;
+      html += `<br><strong style="color:var(--partner)">（${p.name} 老師 兩節都有空，可一次代完）</strong>`;
     } else if (paired) {
-      html += `<br><strong style="color:var(--partner)">（${p.name} 老師 只在這節空堂，另一節請再處理）</strong>`;
+      html += `<br><strong style="color:var(--partner)">（${p.name} 老師 只有這節空，另一節要再找人）</strong>`;
     } else {
       // 真實算可調課時段數（套用同班限制）
       let swapCount = 0;
@@ -1210,26 +1383,26 @@ function renderPanel() {
         }
       }
       if (swapCount > 0) {
-        html += `<br><strong style="color:var(--partner)">（${p.name} 老師 有 ${swapCount} 個時段可調課）</strong>`;
+        html += `<div style="margin-top:0.55em; color:#9a3412; line-height:1.7;">`;
+        html += `<div><b style="color:#7c2d12; font-weight:900; margin-right:0.35em;">要調課</b>在上方↑選擇要調課的時段</div>`;
+        html += `<div><b style="color:#7c2d12; font-weight:900; margin-right:0.35em;">要代課</b>在下方↓點「確認代課」</div>`;
+        html += `</div>`;
       } else {
-        html += `<br><strong style="color:var(--partner)">（${p.name} 老師 沒有可調課時段，只能代課）</strong>`;
+        html += `<br><strong style="color:var(--partner)">（${p.name} 老師 沒有空堂可調，只能請他代課）</strong>`;
       }
     }
   }
   html += `</div>`;
 
   if (state.mode === "leaveSelected" || state.mode === "partnerSelected") {
-    // 搜尋框（即時過濾候選人；會強制展開所有群組）
-    html += `<input type="text" class="panel-search" placeholder="輸入姓名或代號快速過濾…" value="${escapeHtml(state.search)}">`;
     html += renderGroups(groups, e.klass, e.courseDetail);
   }
 
   if (state.mode === "partnerSelected") {
     const partnerCoversBoth = paired && !isOccupied(state.partnerCode, ls.day, paired);
-    const btnText = partnerCoversBoth ? "確認代課（兩節）" : (paired ? "確認代課（僅這節）" : "請他代課（不調課）");
+    const btnText = partnerCoversBoth ? "確認代課（兩節）" : (paired ? "確認代課（這節）" : "確認代課");
     html += `<div style="margin-top:0.5em">`;
     html += `<button class="primary" id="confirm-sub-btn">${btnText}</button>`;
-    html += `<button id="back-to-leave-btn">換別人</button>`;
     html += `<button id="cancel-btn">取消</button>`;
     html += `</div>`;
   } else {
@@ -1237,30 +1410,6 @@ function renderPanel() {
   }
 
   panel.innerHTML = html;
-
-  // 還原搜尋框焦點與插入點
-  const sb = panel.querySelector(".panel-search");
-  if (sb) {
-    if (panel._searchFocus) {
-      sb.focus();
-      sb.setSelectionRange(panel._searchFocus.start, panel._searchFocus.end);
-      panel._searchFocus = null;
-    }
-    // IME（注音/拼音等）組字期間：不要 re-render，否則組字會被中斷
-    sb.addEventListener("compositionstart", () => { panel._composing = true; });
-    sb.addEventListener("compositionend", e => {
-      panel._composing = false;
-      panel._searchFocus = { start: e.target.selectionStart, end: e.target.selectionEnd };
-      state.search = e.target.value;
-      render();
-    });
-    sb.addEventListener("input", e => {
-      if (panel._composing) return;  // 組字中
-      panel._searchFocus = { start: e.target.selectionStart, end: e.target.selectionEnd };
-      state.search = e.target.value;
-      render();
-    });
-  }
 
   // accordion: 群組標題點擊摺疊/展開
   panel.querySelectorAll("h3.collapsible").forEach(h => {
@@ -1272,12 +1421,6 @@ function renderPanel() {
   });
   const subBtn = document.getElementById("confirm-sub-btn");
   if (subBtn) subBtn.addEventListener("click", confirmSub);
-  const backBtn = document.getElementById("back-to-leave-btn");
-  if (backBtn) backBtn.addEventListener("click", () => {
-    state.mode = "leaveSelected";
-    state.partnerCode = null;
-    render();
-  });
   const cancel = document.getElementById("cancel-btn");
   if (cancel) cancel.addEventListener("click", () => {
     state.mode = "idle";
@@ -1408,6 +1551,29 @@ function generateSummaryForPartner(pcode, confs) {
 }
 
 init();
+</script>
+
+<p style="color: #718096; font-size: 14px; letter-spacing: 0.5px;">
+    用起來有問題？
+    <a href="mailto:chaher@dysh.tyc.edu.tw" style="color: #2d3748; font-weight: 600; text-decoration: none; border-bottom: 1px solid #2d3748; padding-bottom: 2px; transition: 0.2s;">
+        mail &#10142;
+    </a>
+</p>
+
+<div id="version-modal">
+  <div class="modal-card">
+    <h2>資料版本 114-2</h2>
+    <p class="modal-sub">這個程式只能幫忙對課表找時段，但不知道其他調代課規則。</p>
+    <button class="primary" id="version-modal-ok">我知道了</button>
+  </div>
+</div>
+<script>
+(function () {
+  const modal = document.getElementById("version-modal");
+  function closeModal() { modal.style.display = "none"; }
+  document.getElementById("version-modal-ok").addEventListener("click", closeModal);
+  modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+})();
 </script>
 </body>
 </html>
