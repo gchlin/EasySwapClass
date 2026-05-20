@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>有空老師卡片範例</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --partner: #ea580c;
+    --partner-soft: #fff7ed;
+    --partner-line: #fb923c;
+    --text: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --panel: #fff3df;
+    --soft: #f3f4f6;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 6px 12px 32px;
+    background: #f8fafc;
+    color: var(--text);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+
+  main {
+    max-width: 1052px;
+    margin: 0;
+  }
+
+  .teacher-card {
+    background: var(--panel);
+    border: 1px solid var(--partner);
+    border-radius: 6px;
+    padding: 16px;
+  }
+
+  .card-header {
+    display: grid;
+    gap: 6px;
+    padding-bottom: 18px;
+  }
+
+  .card-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  .legend {
+    margin: 0;
+    color: var(--muted);
+    font-size: 15px;
+  }
+
+  .legend .homeroom {
+    color: #dc2626;
+    font-weight: 800;
+  }
+
+  .legend .same-subject {
+    color: #16a34a;
+    font-weight: 800;
+  }
+
+  .instruction {
+    display: grid;
+    gap: 2px;
+    margin: 0 0 14px;
+    color: #9a3412;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.5;
+  }
+
+  .candidate-section {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .candidate-group {
+    display: grid;
+    gap: 8px;
+  }
+
+  .group-title {
+    margin: 0;
+    color: var(--muted);
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .teacher-button,
+  .action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    border-radius: 5px;
+    border: 1px solid var(--primary);
+    background: white;
+    color: var(--primary);
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .teacher-button {
+    padding: 7px 14px;
+  }
+
+  .teacher-button.is-selected {
+    border-color: var(--partner);
+    background: var(--partner);
+    color: white;
+    font-weight: 800;
+  }
+
+  .teacher-button .meta {
+    margin-left: 4px;
+    opacity: 0.76;
+    font-size: 14px;
+  }
+
+  .teacher-button .homeroom {
+    margin-left: 6px;
+    color: #dc2626;
+    font-weight: 800;
+  }
+
+  .collapsible-sample {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    margin-top: 2px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    background: var(--soft);
+    color: #4b5563;
+    font-size: 16px;
+  }
+
+  .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 14px;
+  }
+
+  .action-button {
+    padding: 9px 16px;
+  }
+
+  .action-button.primary {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+    font-weight: 700;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 8px; }
+
+    .teacher-card { padding: 14px; }
+
+    .button-row,
+    .action-row {
+      align-items: stretch;
+    }
+
+    .teacher-button,
+    .action-button {
+      white-space: normal;
+      text-align: center;
+    }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <article class="teacher-card" aria-labelledby="teacher-card-title">
+      <header class="card-header">
+        <h1 class="card-title" id="teacher-card-title">這節有空的老師</h1>
+        <p class="legend">
+          候選人卡片：<span class="homeroom">（導師）</span> = 該班導師、<span class="same-subject">★</span> = 同科目老師、括號內顯示科目。
+        </p>
+      </header>
+
+      <div class="instruction" aria-label="操作提示">
+        <div>要調課: 在上方↑選擇要調課的時段</div>
+        <div>要代課: 在下方↓點「確認代課」</div>
+      </div>
+
+      <section class="candidate-section" aria-label="候選老師清單">
+        <div class="candidate-group">
+          <h2 class="group-title">第一優先: 也是相同任課班級的老師</h2>
+          <div class="button-row">
+            <button class="teacher-button is-selected" type="button">藝術師60 <span class="meta">(音樂科)</span></button>
+            <button class="teacher-button" type="button">數學師50 <span class="meta">(數學科)</span></button>
+            <button class="teacher-button" type="button">國文師50 <span class="meta">(國文科)</span></button>
+            <button class="teacher-button" type="button">特教師60 <span class="meta">(輔導／生命教育)</span></button>
+            <button class="teacher-button" type="button">數學師51 <span class="meta">(數學科)</span></button>
+            <button class="teacher-button" type="button">特教師61 <span class="meta">(德語)</span></button>
+            <button class="teacher-button" type="button">英文師48 <span class="meta">(英文科)</span></button>
+            <button class="teacher-button" type="button">社會師33 <span class="meta">(歷史科)</span></button>
+            <button class="teacher-button" type="button">資訊師18 <span class="meta">(資訊科技)</span></button>
+            <button class="teacher-button" type="button">綜合活動師07 <span class="meta">(家政／生涯規劃)</span></button>
+          </div>
+        </div>
+
+        <div class="candidate-group">
+          <h2 class="group-title">第二優先: 也是自然科的老師 ★表示物理科</h2>
+          <div class="button-row">
+            <button class="teacher-button" type="button">自然師51 <span class="homeroom">（導師）</span> <span class="meta">(化學科)</span></button>
+            <button class="teacher-button" type="button">自然師52 <span class="meta">(生物科)</span></button>
+            <button class="teacher-button" type="button">自然師53 ★ <span class="meta">(物理科)</span></button>
+            <button class="teacher-button" type="button">自然師54 <span class="meta">(地球科學)</span></button>
+            <button class="teacher-button" type="button">實驗課程支援師09 ★ <span class="meta">(物理實驗／探究)</span></button>
+          </div>
+        </div>
+
+        <div class="candidate-group">
+          <h2 class="group-title">第三優先: 今日同年級有空堂的老師</h2>
+          <div class="button-row">
+            <button class="teacher-button" type="button">體育師12 <span class="meta">(體育科)</span></button>
+            <button class="teacher-button" type="button">健康師06 <span class="meta">(健康教育)</span></button>
+            <button class="teacher-button" type="button">視覺藝術師21 <span class="meta">(美術科)</span></button>
+            <button class="teacher-button" type="button">表演藝術師22 <span class="meta">(表演藝術)</span></button>
+          </div>
+        </div>
+
+        <div class="collapsible-sample" aria-label="其他科別選擇">▶ 其他科別選擇</div>
+      </section>
+
+      <div class="action-row">
+        <button class="action-button primary" type="button">確認代課</button>
+        <button class="action-button" type="button">取消</button>
+      </div>
+    </article>
+  </main>
+</body>
+</html>
