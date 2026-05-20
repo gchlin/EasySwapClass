@@ -1138,9 +1138,9 @@ function getCandidateGroups(leaveSlot) {
   // 同科群組標籤：含 ★ 提示同子科。若主授和細科顯示相同（國/英/數/特單一細科），就不重複加 ★ 提示
   const myDetail = myInfo.detail;
   const sameSubLabel = (myDetail && fullDet(myDetail) !== fullSub(mySub))
-    ? `第二優先: 也是${fullSub(mySub)}的老師 ★表示${fullDet(myDetail)}`
-    : `第二優先: 也是${fullSub(mySub)}的老師`;
-  const sameKlassLabel = `第一優先: 也是相同任課班級的老師`;
+    ? `第二優先 · 同領域（${fullSub(mySub)}）的老師 ★表示${fullDet(myDetail)}`
+    : `第二優先 · 同領域（${fullSub(mySub)}）的老師`;
+  const sameKlassLabel = `第一優先 · 相同任課班級的老師`;
 
   if (ibLeave) {
     // IB 課程 → 找 IB 老師優先級 > 找同科。連堂群組也拆成 IB / 非 IB
@@ -1216,7 +1216,27 @@ function candBtn(t, priority, leaveKlass, leaveDetail) {
   const dtTag = (isSameDetail && !isHomeroom) ? `<span style="color:var(--swap); margin-left:0.15em;">★</span>` : '';
   // 括弧內顯示細科目全名（譬如「物理科」）；無細科則 fallback 主授全名
   const labelInParen = t.detail ? fullDet(t.detail) : fullSub(t.subject);
-  return `<button class="cand-btn pri-${priority}${active ? ' active' : ''}" data-pcode="${t.code}">${t.name}${hrTag}${dtTag}<span style="font-size:0.75em; opacity:0.7"> (${labelInParen})</span></button>`;
+  return `<button class="cand-btn pri-${priority}${active ? ' active' : ''}" data-pcode="${t.code}"><strong style="font-weight:700">${t.name}</strong>${hrTag}${dtTag}<span style="font-size:0.75em; opacity:0.68; margin-left:0.25em">${labelInParen}</span></button>`;
+}
+
+function groupSubtitle(g) {
+  if (g.coverBoth) return "DOUBLE PERIOD";
+  if (g.kind === "sameKlass") return "SAME CLASS";
+  if (g.kind === "sameSub") {
+    const starHint = (g.label.match(/★表示(.+)$/) || [])[1];
+    return starHint ? `SAME SUBJECT　★ = ${starHint}` : "SAME SUBJECT";
+  }
+  if (g.splitByDomain) return "OTHER SUBJECTS";
+  return "";
+}
+
+function groupTitleHtml(g, caretHtml) {
+  const label = escapeHtml(g.label).replace(/\s*★表示.+$/, "");
+  const subtitle = groupSubtitle(g);
+  const subHtml = subtitle
+    ? `<small style="display:block; margin-top:0.2em; font-size:0.78em; font-weight:600; color:#9ca3af; letter-spacing:0.04em;">${escapeHtml(subtitle)}</small>`
+    : "";
+  return `${caretHtml}<span style="font-size:1.18em; font-weight:800; color:#1c1917; line-height:1.2;">${label}</span>${subHtml}`;
 }
 
 function renderGroups(groups, leaveKlass, leaveDetail) {
@@ -1229,7 +1249,7 @@ function renderGroups(groups, leaveKlass, leaveDetail) {
     const caretHtml = (g.priority >= 3) ? `<span class="caret${expanded ? '' : ' collapsed'}">▼</span> ` : '';
     const dataAttr = (g.priority >= 3) ? `data-toggle-label="${escapeHtml(g.label)}"` : '';
     html += `<div class="candidate-group">`;
-    html += `<h3 class="${headerCls}" ${dataAttr}>${caretHtml}${g.label}</h3>`;
+    html += `<h3 class="${headerCls}" ${dataAttr}>${groupTitleHtml(g, caretHtml)}</h3>`;
     html += `<div class="group-body" ${expanded ? '' : 'hidden'}>`;
 
     if (g.splitByDomain) {
@@ -1283,14 +1303,14 @@ function renderPanel() {
 
   let html = '';
   html += `<div id="panel-status">`;
-  html += `<div class="panel-title"><span>這節有空的老師</span>`;
+  html += `<div class="panel-title"><span style="font-size:1.3em; font-weight:900; line-height:1.15; color:#1c1917;">這節有空的老師</span>`;
   if (ibLeave) {
     const ibOnly = document.getElementById("ib-mode").checked;
     const ibLabel = ibOnly ? "IB 課程 · 只列 IB 老師" : "IB 課程";
     html += `<span class="panel-badge">${ibLabel}</span>`;
   }
   html += `</div>`;
-  html += `<div class="panel-guide">候選人卡片：<span class="guide-hr">（導師）</span> = 該班導師、<span class="guide-star">★</span> = 同科目老師、括號內顯示科目。</div>`;
+  html += `<div class="panel-guide" style="font-size:0.82em; color:#78716c; line-height:1.6;"><span class="guide-hr">（導師）</span>＝該班導師　<span class="guide-star">★</span>＝同科目老師　右側小字顯示任教科目</div>`;
   if (paired) {
     const lo = Math.min(ls.period, paired);
     const hi = Math.max(ls.period, paired);
@@ -1312,7 +1332,10 @@ function renderPanel() {
         }
       }
       if (swapCount > 0) {
-        html += `<br><strong style="color:#9a3412">要調課: 在上方↑選擇要調課的時段 <br> 要代課: 在下方↓點"確認代課"</strong>`;
+        html += `<div style="margin-top:0.55em; color:#9a3412; line-height:1.7;">`;
+        html += `<div><b style="color:#7c2d12; font-weight:900; margin-right:0.35em;">要調課</b>在上方↑選擇要調課的時段</div>`;
+        html += `<div><b style="color:#7c2d12; font-weight:900; margin-right:0.35em;">要代課</b>在下方↓點「確認代課」</div>`;
+        html += `</div>`;
       } else {
         html += `<br><strong style="color:var(--partner)">（${p.name} 老師 沒有空堂可調，只能請他代課）</strong>`;
       }
