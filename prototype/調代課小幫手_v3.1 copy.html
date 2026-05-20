@@ -125,6 +125,35 @@
     margin-bottom: 0.5em;
     font-size: 0.95em;
   }
+  .panel-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45em;
+    flex-wrap: wrap;
+    color: #111827;
+    font-weight: 700;
+  }
+  .panel-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: var(--primary);
+    font-size: 0.78em;
+    font-weight: 600;
+  }
+  .panel-guide {
+    margin-top: 0.2em;
+    color: var(--muted);
+    font-size: 0.82em;
+  }
+  .panel-guide .guide-hr { color: #dc2626; font-weight: 700; }
+  .panel-guide .guide-star { color: #16a34a; font-weight: 700; }
+  .panel-note {
+    margin-top: 0.3em;
+    color: #5b21b6;
+    font-size: 0.86em;
+  }
   .candidate-group { margin: 0.4em 0; }
   .candidate-group h3 {
     margin: 0.3em 0 0.2em;
@@ -1110,7 +1139,8 @@ function getCandidateGroups(leaveSlot) {
   const myDetail = myInfo.detail;
   const sameSubLabel = (myDetail && fullDet(myDetail) !== fullSub(mySub))
     ? `第二優先: 也是${fullSub(mySub)}的老師 ★表示${fullDet(myDetail)}`
-    : `第一優先: 也是${fullSub(mySub)}的老師`;
+    : `第二優先: 也是${fullSub(mySub)}的老師`;
+  const sameKlassLabel = `第一優先: 也是相同任課班級的老師`;
 
   if (ibLeave) {
     // IB 課程 → 找 IB 老師優先級 > 找同科。連堂群組也拆成 IB / 非 IB
@@ -1128,8 +1158,8 @@ function getCandidateGroups(leaveSlot) {
     const ibSameKlass = free.filter(t => t.isIB && !isSame(t) && isSameClass(t) && canSwapMyKlass(t.code));
     const ibSameKlassCodes = new Set(ibSameKlass.map(t => t.code));
     const ibOther = free.filter(t => t.isIB && !isSame(t) && !ibSameKlassCodes.has(t.code));
-    if (myKlass) groups.push({ label: `IB · 也是 ${myKlass} 班的任課老師`, priority: 1, teachers: ibSameKlass, kind: "sameKlass" });
-    groups.push({ label: `IB · ${sameSubLabel}`, priority: 2, teachers: ibSameSub, kind: "sameSub" });
+    if (myKlass) groups.push({ label: `IB優先 · ${sameKlassLabel}`, priority: 1, teachers: ibSameKlass, kind: "sameKlass" });
+    groups.push({ label: `IB優先 · ${sameSubLabel}`, priority: 2, teachers: ibSameSub, kind: "sameSub" });
     groups.push({ label: "IB · 其他科別選擇", priority: 3, teachers: ibOther, splitByDomain: true });
     if (!ibOnly) {
       const sameSub = free.filter(t => !t.isIB && isSame(t));
@@ -1157,7 +1187,7 @@ function getCandidateGroups(leaveSlot) {
   const sameKlassNotSub = free.filter(t => !isSame(t) && isSameClass(t) && canSwapMyKlass(t.code));
   const sameKlassCodes = new Set(sameKlassNotSub.map(t => t.code));
   const other = free.filter(t => !isSame(t) && !sameKlassCodes.has(t.code));
-  if (myKlass) groups.push({ label: `也是 ${myKlass} 班的任課老師`, priority: 1, teachers: sameKlassNotSub, kind: "sameKlass" });
+  if (myKlass) groups.push({ label: sameKlassLabel, priority: 1, teachers: sameKlassNotSub, kind: "sameKlass" });
   groups.push({ label: sameSubLabel, priority: 2, teachers: sameSub, kind: "sameSub" });
   groups.push({ label: "其他科別選擇", priority: 3, teachers: other, splitByDomain: true });
   return groups;
@@ -1253,17 +1283,18 @@ function renderPanel() {
 
   let html = '';
   html += `<div id="panel-status">`;
-  html += `<strong>這節有空的老師</strong>`;
-  html += `<div style="margin-top:0.15em; color:var(--muted); font-size:0.85em;">候選人卡片：<span style="color:#dc2626; font-weight:bold">（導師）</span> = 該班導師、<span style="color:#16a34a; font-weight:bold">★</span> = 同科目老師、括號內顯示科目。</div>`;
+  html += `<div class="panel-title"><span>這節有空的老師</span>`;
   if (ibLeave) {
     const ibOnly = document.getElementById("ib-mode").checked;
-    const ibLabel = ibOnly ? "（IB 課程，只列 IB 老師）" : "（IB 課程）";
-    html += ` <span style="color:var(--partner); font-size:0.85em">${ibLabel}</span>`;
+    const ibLabel = ibOnly ? "IB 課程 · 只列 IB 老師" : "IB 課程";
+    html += `<span class="panel-badge">${ibLabel}</span>`;
   }
+  html += `</div>`;
+  html += `<div class="panel-guide">候選人卡片：<span class="guide-hr">（導師）</span> = 該班導師、<span class="guide-star">★</span> = 同科目老師、括號內顯示科目。</div>`;
   if (paired) {
     const lo = Math.min(ls.period, paired);
     const hi = Math.max(ls.period, paired);
-    html += `<br><span style="color:#7c3aed; font-size:0.9em">⚠️ 這是連堂第 ${lo}-${hi} 節。「兩節都能代的老師」可一人代兩節；要分兩位代，就分開處理。</span>`;
+    html += `<div class="panel-note">⚠️ 這是連堂第 ${lo}-${hi} 節。「兩節都能代的老師」可一人代兩節；要分兩位代，就分開處理。</div>`;
   }
   if (state.mode === "partnerSelected") {
     const p = teacherInfo(state.partnerCode);
