@@ -83,7 +83,7 @@
   }
   td.cell-confirmed-leave-swap {
     background: #fde68a; border: 2px solid #b45309;
-    color: #78350f; font-weight: 500;
+    color: #010101; font-weight: 500;
   }
   td.cell-confirmed-swap-in {
     background: #d1fae5; border: 2px solid var(--swap);
@@ -172,12 +172,19 @@
     background: var(--partner); color: white; border-color: var(--partner);
     font-weight: bold;
   }
+  #find-partner-hint .hint-keyword {
+    cursor: default;
+    margin: 0 0.1em;
+    background: white;
+  }
+  #find-partner-hint .hint-keyword:hover { background: white; }
 
   .legend {
     display: flex; flex-wrap: wrap; gap: 0.5em;
     font-size: 0.8em; margin: 0.4em 0;
   }
-  .legend span { padding: 2px 8px; border-radius: 3px; border: 1px solid; }
+  .legend span,
+  .legend-chip { padding: 2px 8px; border-radius: 3px; border: 1px solid; }
   .lg-yellow { background: #fef9c3; border-color: #ca8a04; color: #713f12; }
   .lg-leave { background: var(--leave); border-color: #b45309; color: white; }
   .lg-swap-opt { background: #ffedd5; border-color: var(--partner); color: #9a3412; }
@@ -259,9 +266,11 @@
 </head>
 <body>
 
-<br>提醒：除了「誰有課」，其他眉角還是要自己判斷。
 
-<h1>尋找調代課小幫手</h1>
+<h1>尋找調代課小幫手 <button class="help-btn" data-target="help-title">ⓘ 說明</button></h1>
+<div id="help-title" class="help-body" hidden>
+  <p>● 操作流程：1.選你自己 2.看課表選時段 3.選調課老師 4.完成分享訊息</p>
+</div>
 
 <section>
   <h2>1. 我是誰</h2>
@@ -270,7 +279,10 @@
     <p>● 瀏覽器會記得你，下次打開直接是你。</p>
     <p>● 要書籤化「自己」這個身分：在網址後加 <code>#代號</code>（例如 <code>#N60</code>）。</p>
   </div>
-  <select id="teacher"></select>
+  <div style="display:flex; align-items:center; gap:0.75em; flex-wrap:wrap">
+    <select id="teacher"></select>
+    <span style="color:#9a3412; font-weight:bold">↓在下方點選找要調代課的<span class="legend-chip lg-yellow">時段框框</span>↓</span>
+  </div>
   <div style="margin-top:0.5em; font-size:0.9em">
     <label style="cursor:pointer">
       <input type="checkbox" id="ib-mode"> IB 模式
@@ -282,11 +294,9 @@
   <h2>2. 我的課表</h2>
   <button class="help-btn" data-target="help-2">ⓘ 說明</button>
   <div id="help-2" class="help-body" hidden>
-    <p>● 操作流程：點請假時段 → 點代課人選 → 點調課時段或按代課。</p>
     <p>● 點黃色格子＝請假該時段，再點一次取消。</p>
     <p>● 確認後的格子再點一次也可以取消。</p>
     <p>● 紫色粗框＝連堂課，兩堂都點，才能找兩節都有空的老師。</p>
-    <p>● 候選人卡片內會顯示: 紅字 = 導師、綠色 ★ = 同科目老師、括號內顯示科目。</p>
   </div>
   <p style="color:#dc2626; font-weight:bold; margin:0.3em 0 0.4em;"></p>
   <div id="legend" class="legend" style="margin:0.4em 0"></div>
@@ -297,13 +307,13 @@
       <option value="this">當週</option>
       <option value="next">下週</option>
     </select>
-    <span id="find-partner-hint" hidden style="margin-left:0.6em; color:var(--partner); font-weight:bold">再下方列表找要調代課的老師</span>
+    <span id="find-partner-hint" hidden style="margin-left:0.6em; color:#2563eb; font-weight:bold"><span class="hint-arrow">↓</span>在下方找調代課<span class="hint-keyword cand-btn pri-1">老師</span><span class="hint-arrow">↓</span></span>
   </div>
   <table class="schedule" id="schedule"></table>
   <div id="panel" style="display:none"></div>
   <div style="margin-top:0.6em">
     <button class="danger" id="reset-btn">清除全部已選方案</button>
-    <span id="post-confirm-hint" hidden style="margin-left:0.5em; font-size:0.9em; color:var(--swap)">完成，↑可以再點下一節要請假的時段；↓下方確認課表</span>
+    <span id="post-confirm-hint" hidden style="margin-left:0.5em; font-size:0.9em; color:var(--swap)"><br>完成，↑可以再點下一節要請假的時段↑；↓也可以下方確認課表↓</span>
   </div>
 </section>
 
@@ -690,8 +700,40 @@ function render() {
   renderPartnerSchedules();
   renderSelfSchedule();
   document.getElementById("post-confirm-hint").hidden = state.confirmed.length === 0;
-  // 點完請假時段後才出現「再下方列表找要調代課的老師」
+  // 點完請假時段後才出現「↓在下方列表找要調代課的時段」
   document.getElementById("find-partner-hint").hidden = !state.leaveSlot;
+  updateFindPartnerHintBlink();
+}
+
+let findPartnerHintTimer = null;
+let findPartnerHintBlinkDone = false;
+function updateFindPartnerHintBlink() {
+  const hint = document.getElementById("find-partner-hint");
+  const arrows = hint ? hint.querySelectorAll(".hint-arrow") : [];
+  if (!hint || arrows.length === 0) return;
+  if (hint.hidden) {
+    if (findPartnerHintTimer) {
+      clearInterval(findPartnerHintTimer);
+      findPartnerHintTimer = null;
+    }
+    findPartnerHintBlinkDone = false;
+    arrows.forEach(a => { a.innerText = "↓"; });
+    return;
+  }
+  if (findPartnerHintTimer || findPartnerHintBlinkDone) return;
+  let alternate = false;
+  let count = 0;
+  findPartnerHintTimer = setInterval(() => {
+    arrows[0].innerText = alternate ? "↓" : "⬇";
+    arrows[1].innerText = alternate ? "⬇" : "↓";
+    alternate = !alternate;
+    count++;
+    if (count >= 4) {
+      clearInterval(findPartnerHintTimer);
+      findPartnerHintTimer = null;
+      findPartnerHintBlinkDone = true;
+    }
+  }, 500);
 }
 
 // 動態圖例：只顯示畫面上「實際出現」的格子類型，避免一開始就堆一排不知道意義的色塊
@@ -1067,8 +1109,8 @@ function getCandidateGroups(leaveSlot) {
   // 同科群組標籤：含 ★ 提示同子科。若主授和細科顯示相同（國/英/數/特單一細科），就不重複加 ★ 提示
   const myDetail = myInfo.detail;
   const sameSubLabel = (myDetail && fullDet(myDetail) !== fullSub(mySub))
-    ? `也是${fullSub(mySub)}的老師 ★表示${fullDet(myDetail)}`
-    : `也是${fullSub(mySub)}的老師`;
+    ? `第二優先: 也是${fullSub(mySub)}的老師 ★表示${fullDet(myDetail)}`
+    : `第一優先: 也是${fullSub(mySub)}的老師`;
 
   if (ibLeave) {
     // IB 課程 → 找 IB 老師優先級 > 找同科。連堂群組也拆成 IB / 非 IB
@@ -1086,7 +1128,7 @@ function getCandidateGroups(leaveSlot) {
     const ibSameKlass = free.filter(t => t.isIB && !isSame(t) && isSameClass(t) && canSwapMyKlass(t.code));
     const ibSameKlassCodes = new Set(ibSameKlass.map(t => t.code));
     const ibOther = free.filter(t => t.isIB && !isSame(t) && !ibSameKlassCodes.has(t.code));
-    if (myKlass) groups.push({ label: `IB · 同為 ${myKlass} 班的任課老師`, priority: 1, teachers: ibSameKlass, kind: "sameKlass" });
+    if (myKlass) groups.push({ label: `IB · 也是 ${myKlass} 班的任課老師`, priority: 1, teachers: ibSameKlass, kind: "sameKlass" });
     groups.push({ label: `IB · ${sameSubLabel}`, priority: 2, teachers: ibSameSub, kind: "sameSub" });
     groups.push({ label: "IB · 其他科別選擇", priority: 3, teachers: ibOther, splitByDomain: true });
     if (!ibOnly) {
@@ -1212,6 +1254,7 @@ function renderPanel() {
   let html = '';
   html += `<div id="panel-status">`;
   html += `<strong>這節有空的老師</strong>`;
+  html += `<div style="margin-top:0.15em; color:var(--muted); font-size:0.85em;">候選人卡片：<span style="color:#dc2626; font-weight:bold">（導師）</span> = 該班導師、<span style="color:#16a34a; font-weight:bold">★</span> = 同科目老師、括號內顯示科目。</div>`;
   if (ibLeave) {
     const ibOnly = document.getElementById("ib-mode").checked;
     const ibLabel = ibOnly ? "（IB 課程，只列 IB 老師）" : "（IB 課程）";
@@ -1238,7 +1281,7 @@ function renderPanel() {
         }
       }
       if (swapCount > 0) {
-        html += `<br><strong style="color:var(--partner)">要調課: 在上方↑選擇要調課的時段 <br> 要代課: 在下方↓點"代課"</strong>`;
+        html += `<br><strong style="color:#9a3412">要調課: 在上方↑選擇要調課的時段 <br> 要代課: 在下方↓點"確認代課"</strong>`;
       } else {
         html += `<br><strong style="color:var(--partner)">（${p.name} 老師 沒有空堂可調，只能請他代課）</strong>`;
       }
@@ -1255,7 +1298,6 @@ function renderPanel() {
     const btnText = partnerCoversBoth ? "確認代課（兩節）" : (paired ? "確認代課（這節）" : "確認代課");
     html += `<div style="margin-top:0.5em">`;
     html += `<button class="primary" id="confirm-sub-btn">${btnText}</button>`;
-    html += `<button id="back-to-leave-btn">換別人</button>`;
     html += `<button id="cancel-btn">取消</button>`;
     html += `</div>`;
   } else {
@@ -1274,12 +1316,6 @@ function renderPanel() {
   });
   const subBtn = document.getElementById("confirm-sub-btn");
   if (subBtn) subBtn.addEventListener("click", confirmSub);
-  const backBtn = document.getElementById("back-to-leave-btn");
-  if (backBtn) backBtn.addEventListener("click", () => {
-    state.mode = "leaveSelected";
-    state.partnerCode = null;
-    render();
-  });
   const cancel = document.getElementById("cancel-btn");
   if (cancel) cancel.addEventListener("click", () => {
     state.mode = "idle";
@@ -1412,10 +1448,17 @@ function generateSummaryForPartner(pcode, confs) {
 init();
 </script>
 
+<p style="color: #718096; font-size: 14px; letter-spacing: 0.5px;">
+    用起來有問題？
+    <a href="mailto:chaher@dysh.tyc.edu.tw" style="color: #2d3748; font-weight: 600; text-decoration: none; border-bottom: 1px solid #2d3748; padding-bottom: 2px; transition: 0.2s;">
+        mail &#10142;
+    </a>
+</p>
+
 <div id="version-modal">
   <div class="modal-card">
     <h2>資料版本 114-2</h2>
-    <p class="modal-sub">chaher@dysh.tyc.edu.tw × Claude Code</p>
+    <p class="modal-sub">這個程式只能幫忙對課表找時段，但不知道其他調代課規則。</p>
     <button class="primary" id="version-modal-ok">我知道了</button>
   </div>
 </div>
