@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>產品說明 ｜ 代課查詢_全校</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis' } });
+</script>
+<style>
+  :root{
+    --primary:#1d4ed8;
+    --primary-soft:#dbeafe;
+    --accent:#f59e0b;
+    --ink:#111827;
+    --muted:#6b7280;
+    --bg:#f8fafc;
+    --card:#ffffff;
+    --good:#059669;
+    --bad:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+    line-height:1.7;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:24px 20px 80px}
+  header.hero{
+    background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 60%,#60a5fa 100%);
+    color:white;
+    padding:36px 28px;
+    border-radius:18px;
+    box-shadow:0 10px 30px rgba(29,78,216,.25);
+    margin-bottom:28px;
+  }
+  header.hero .tag{
+    display:inline-block;background:rgba(255,255,255,.18);
+    padding:4px 12px;border-radius:999px;font-size:13px;letter-spacing:1px;margin-bottom:12px;
+  }
+  header.hero h1{margin:0 0 8px;font-size:28px;line-height:1.3}
+  header.hero p.lead{margin:0;font-size:17px;opacity:.95}
+  .pitch{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px;
+  }
+  .pitch .item{
+    background:rgba(255,255,255,.14);padding:14px;border-radius:12px;
+    backdrop-filter:blur(4px);
+  }
+  .pitch .item b{display:block;font-size:15px;margin-bottom:4px}
+  .pitch .item span{font-size:13px;opacity:.9}
+  h2{
+    font-size:22px;margin:40px 0 14px;padding-left:12px;
+    border-left:6px solid var(--primary);
+  }
+  h3{font-size:17px;margin:22px 0 8px;color:var(--primary)}
+  .card{
+    background:var(--card);border-radius:14px;padding:20px 22px;
+    box-shadow:0 2px 10px rgba(0,0,0,.04);margin-bottom:16px;
+  }
+  table{width:100%;border-collapse:collapse;margin:8px 0}
+  th,td{padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}
+  th{background:var(--primary-soft);color:var(--primary);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  .mermaid{background:#fff;border-radius:12px;padding:16px;margin:12px 0;text-align:center;overflow-x:auto}
+  .bullets{margin:8px 0;padding-left:22px}
+  .bullets li{margin:6px 0}
+  .badge{
+    display:inline-block;font-size:12px;padding:2px 10px;border-radius:999px;
+    background:var(--primary-soft);color:var(--primary);margin-right:6px;
+  }
+  .badge.good{background:#d1fae5;color:var(--good)}
+  .badge.bad{background:#fee2e2;color:var(--bad)}
+  .quote{
+    background:#fffbeb;border-left:4px solid var(--accent);
+    padding:12px 16px;border-radius:8px;margin:12px 0;font-size:15px;
+  }
+  .msg{
+    background:#0f172a;color:#e2e8f0;font-family:Consolas,Menlo,monospace;
+    padding:14px 16px;border-radius:10px;font-size:14px;white-space:pre-wrap;
+  }
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:680px){
+    header.hero{padding:24px 18px}
+    header.hero h1{font-size:22px}
+    .pitch{grid-template-columns:1fr}
+    .grid2{grid-template-columns:1fr}
+    h2{font-size:19px}
+  }
+  footer{margin-top:50px;color:var(--muted);font-size:13px;text-align:center}
+  .vs{display:flex;align-items:center;gap:14px;margin:8px 0}
+  .vs .box{flex:1;background:#f1f5f9;padding:12px;border-radius:10px}
+  .vs .arrow{font-size:22px;color:var(--primary)}
+  code{background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:13px;color:#0f172a}
+  .sim-row{display:flex;flex-wrap:wrap;gap:14px}
+  .sim-row label{background:#fff;border:1px solid #e5e7eb;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:14px}
+  .sim-row label:hover{border-color:var(--primary)}
+  .sim-group{background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin:8px 0;padding:10px 14px}
+  .sim-group h4{margin:0 0 8px;font-size:14px;color:var(--primary)}
+  .sim-teacher{display:inline-block;background:#dbeafe;color:#1e3a8a;padding:4px 10px;margin:3px;border-radius:6px;font-size:13px}
+  .sim-teacher.hr{background:#fee2e2;color:#991b1b;font-weight:700}
+  .sim-teacher.star::after{content:" ★";color:#f59e0b}
+  .sim-trace-line{font-size:13px;color:#475569;padding:3px 0;font-family:Consolas,Menlo,monospace}
+  .sim-trace-line b{color:var(--primary)}
+  .rule-layer{margin:14px 0;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb}
+  .rule-layer-head{padding:8px 14px;font-weight:700;font-size:14px;letter-spacing:.5px}
+  .rule-layer table{margin:0}
+  .rule-layer table td{border-bottom:1px solid #f1f5f9}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 一分鐘電梯簡報 -->
+  <header class="hero">
+    <span class="tag">一分鐘電梯簡報</span>
+    <h1>在課表上直接點，30 秒搞定請假代課</h1>
+    <p class="lead">別家是「給你一份名單，自己對課表」。我們是<b>直接在你的課表圖像上操作</b>——點請假節、點代課人選、產出對方視角的課表截圖。所見即所得。</p>
+    <div class="pitch">
+      <div class="item"><b>視覺化操作</b><span>在課表圖上點選，不是看文字清單對著表格猜</span></div>
+      <div class="item"><b>聰明排序</b><span>認得導師、同科、連堂、IB 課程</span></div>
+      <div class="item"><b>通知無痛</b><span>自動產出對方課表截圖，丟 LINE 完成</span></div>
+    </div>
+  </header>
+
+  <!-- 痛點對照 -->
+  <h2>我們最大的賣點：在課表圖像上操作</h2>
+  <div class="card">
+    <p class="quote"><b>別家工具：</b>給你一份「可調課的老師清單」，你還要自己對著課表，一格一格找對方哪節是空的、哪節撞了——文字 vs. 表格，腦袋一直切換。</p>
+    <p class="quote" style="background:#ecfdf5;border-left-color:var(--good)"><b>我們：</b>所有操作都在<b>課表圖像</b>上完成。請假點哪一格、代課人選一被點，他的課表就直接畫出來；要調課？直接點對方課表上橘色虛線框的格子。</p>
+
+    <h3>具體差別</h3>
+    <table>
+      <thead><tr><th>情境</th><th>別家（文字清單型）</th><th>本工具（視覺化）</th></tr></thead>
+      <tbody>
+        <tr><td>看誰有空</td><td>給一份名字清單</td><td><b>把對方課表整張畫出來</b>，那節空堂自動高亮</td></tr>
+        <tr><td>找可調課時段</td><td>列出「週二第 3 節」這種文字</td><td>對方課表上<b>所有可調的格子用橘色虛線</b>標出，直接點</td></tr>
+        <tr><td>連堂課</td><td>提醒「這是連堂」</td><td>畫面上<b>兩節同時高亮</b>，連堂群組標 1-2 節</td></tr>
+        <tr><td>確認結果</td><td>給你一行訊息</td><td>產出<b>對方視角的課表截圖</b>，紅綠標記哪節要代</td></tr>
+        <tr><td>通知對方</td><td>複製文字訊息</td><td>截圖 + 文字訊息<b>雙軌</b>，截圖直接看就懂</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>過去的痛點 vs. 本工具解法</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>過去痛點</th><th>本工具解法</th></tr></thead>
+      <tbody>
+        <tr><td>翻全校課表找誰有空，超花時間</td><td>自動篩出該節空堂老師</td></tr>
+        <tr><td>找到人後，還要再去看他課表哪節空</td><td><b>對方課表直接畫在你眼前</b>，空堂一目了然</td></tr>
+        <tr><td>不知道找誰最合適（同科？導師？同細項專長？）</td><td>多階分層排序，最適合的浮在最上面</td></tr>
+        <tr><td>IB 課程不能隨便找人代</td><td>內建 IB 模式，自動隔離 IB / 非 IB 名單</td></tr>
+        <tr><td>連堂課要找兩位代課，容易出錯</td><td>自動偵測連堂，優先推薦「兩節都有空」的人</td></tr>
+        <tr><td>通知訊息要手打，容易漏掉節次</td><td>自動生成可複製/截圖的訊息</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 使用流程 -->
+  <h2>使用流程：四步驟搞定</h2>
+  <div class="card">
+    <p>整個體驗就是<b>「點四下」</b>——從決定誰請假，到產生通知訊息：</p>
+    <div class="mermaid">
+flowchart LR
+    A([Step 1 我是誰<br/>選自己的名字]) --> B([Step 2 我的課表<br/>點請假節次])
+    B --> C([Step 3 候選人清單<br/>系統自動排好])
+    C --> D([Step 4 確認摘要<br/>截圖傳 LINE])
+    style A fill:#dbeafe,stroke:#1d4ed8
+    style B fill:#dbeafe,stroke:#1d4ed8
+    style C fill:#fef3c7,stroke:#f59e0b
+    style D fill:#d1fae5,stroke:#059669
+    </div>
+    <p style="color:var(--muted);font-size:14px">老師選過自己一次後，下次開啟工具會記得身分，不用再選。</p>
+  </div>
+
+  <!-- 候選人排序邏輯 -->
+  <h2>候選人怎麼排？（核心賣點）</h2>
+  <div class="card">
+    <div class="quote">
+      白話：<b>「先找對的人，再找有空的人，最後才看順位。」</b>
+      —— 大多數工具只做「誰有空」，我們連「誰最合適」都幫你想好。
+    </div>
+
+    <h3>判斷流程</h3>
+    <div class="mermaid">
+flowchart TD
+    Start([請假節次確定]) --> F1{該節有課的老師?}
+    F1 -->|有課| X[剔除]
+    F1 -->|沒課| F2{是否為連堂課?}
+    F2 -->|是| P0[優先：兩節都有空的人]
+    F2 -->|否| F3{是否為 IB 課?}
+    P0 --> F3
+    F3 -->|是 + IB模式開啟| IB[只看 IB 老師]
+    F3 -->|否| ALL[全校老師都可考慮]
+    IB --> Sort
+    ALL --> Sort
+    Sort[分層排序<br/>依下表顯示]
+    style P0 fill:#fef3c7,stroke:#f59e0b
+    style Sort fill:#dbeafe,stroke:#1d4ed8
+    style X fill:#fee2e2,stroke:#dc2626
+    </div>
+
+    <h3>分層順序（由上而下）</h3>
+    <table>
+      <thead><tr><th>層級</th><th>對象</th><th>為什麼放這一層</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge good">第 1 層</span></td><td>同班不同科的老師</td><td>可以「調課」——直接互換時段，不用找代課</td></tr>
+        <tr><td><span class="badge">第 2 層</span></td><td>同科目老師</td><td>專業對口，學生不會有銜接落差</td></tr>
+        <tr><td><span class="badge">第 3 層</span></td><td>其他科老師</td><td>當前兩層都不行時的備案（可折疊展開）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>每一層內部的精緻排序</h3>
+    <p>同一層裡面，再依下列順序往上排：</p>
+    <ul class="bullets">
+      <li><b>該班導師</b>——對學生最熟，最理想</li>
+      <li><b>同細項專長</b>（例：物理 vs. 化學都屬自然科，但同為「物理」者優先；UI 以 ★ 標示）</li>
+      <li><b>姓名筆劃</b>——讓排序穩定、公平</li>
+      <li><b>教師代碼</b>——最後的 tiebreaker</li>
+    </ul>
+  </div>
+
+  <!-- 調課 vs 代課 -->
+  <h2>調課 vs. 代課：兩種模式都支援</h2>
+  <div class="card">
+    <div class="vs">
+      <div class="box">
+        <b>代課</b><br/>
+        <span style="color:var(--muted);font-size:14px">對方來上你的課，你那節休息。</span>
+      </div>
+      <div class="arrow">vs.</div>
+      <div class="box">
+        <b>調課</b><br/>
+        <span style="color:var(--muted);font-size:14px">你跟對方互換時段，總授課時數不變。</span>
+      </div>
+    </div>
+    <p>更棒的是——<b>同一次請假可以混搭</b>：第 2 節找人代、第 5 節跟人調，工具會一起處理、一起產通知。</p>
+  </div>
+
+  <!-- 自動訊息 -->
+  <h2>自動生成通知訊息</h2>
+  <div class="card">
+    <p>當你按下「確認」，工具立刻幫每一位被找上的老師生成可複製的訊息：</p>
+    <div class="msg">4/15(一) 第2節 化學2C班 → 王老師代課（李老師請假）
+4/16(二) 第3節 物理1A班 ↔ 李老師上課（請王老師休息）</div>
+    <p style="margin-top:10px">同時，畫面上會產生一張<b>個人摘要表</b>（紅＝不用上、綠＝要代課），<b>直接截圖丟 LINE</b> 對方就懂。</p>
+  </div>
+
+  <!-- 產品如何被製造 -->
+  <h2>這個產品怎麼「生」出來？</h2>
+  <div class="card">
+    <p>整套交付給學校只有<b>一個 HTML 檔（約 536KB）</b>。每學期更新流程：</p>
+    <div class="mermaid">
+flowchart LR
+    CSV[(全校課表<br/>CSV)] --> PY[Python 產生器<br/>build_web_school.py]
+    TPL[HTML 模板<br/>含 UI 與排序邏輯] --> PY
+    PY --> OUT([代課查詢_全校.html<br/>單檔，可離線])
+    OUT --> SCHOOL([寄給全校老師])
+    style OUT fill:#d1fae5,stroke:#059669
+    style PY fill:#dbeafe,stroke:#1d4ed8
+    </div>
+    <p style="color:var(--muted);font-size:14px">學期切換、新老師加入、IB 名單變動——<b>重跑一次 Python，產出新檔，再發一次就好</b>。</p>
+  </div>
+
+  <!-- 為什麼買單（含考慮過的規則） -->
+  <h2>為什麼學校會買單</h2>
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <h3>導入零阻力</h3>
+        <ul class="bullets">
+          <li>不用架伺服器、不用買主機</li>
+          <li>不用帳號登入、不用 IT 維護</li>
+          <li>載入後可<b>離線使用</b>，網路不穩也不怕</li>
+        </ul>
+      </div>
+      <div>
+        <h3>跟現有流程接軌</h3>
+        <ul class="bullets">
+          <li>輸出是<b>截圖</b>，跟 LINE 工作群無痛整合</li>
+          <li>不改變老師既有溝通習慣</li>
+        </ul>
+      </div>
+      <div>
+        <h3>學校無痛維護</h3>
+        <ul class="bullets">
+          <li>更新只要重跑一支 Python</li>
+          <li>產出是單檔——分發、備份、回滾都簡單</li>
+        </ul>
+      </div>
+      <div>
+        <h3>規則設計嚴謹</h3>
+        <ul class="bullets">
+          <li>不只是「誰有空」，連<b>合理性</b>都驗證</li>
+          <li>規則寫在程式裡、可審計、可被學校挑戰</li>
+          <li>每條規則都有「為什麼」，不是黑盒子</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px">我們考慮過、寫進程式的規則（依層次）</h3>
+    <p style="color:var(--muted);font-size:14px">規則分四層：<b>底線</b>（不能違反）→ <b>師資合規</b>（學校制度）→ <b>專業適配</b>（教學品質）→ <b>體驗細節</b>（操作順手）。</p>
+
+    <div class="rule-layer">
+      <div class="rule-layer-head" style="background:#fee2e2;color:#991b1b">第 1 層 · 底線規則：違反就是錯</div>
+      <table>
+        <tbody>
+          <tr><td style="width:35%"><b>該節已有課的老師不出現</b></td><td>不能讓人撞課，這是物理上的最低底線</td></tr>
+          <tr><td><b>請假者自己不出現在候選人</b></td><td>避免無意義的選項</td></tr>
+          <tr><td><b>同班候選需有「同班空堂」可換</b></td><td>沒辦法調課的人，列在「可調課」群組是欺騙</td></tr>
+          <tr><td><b>調課時段限制在同班級</b></td><td>不能把 2A 物理跟對方 3C 物理對調，學生會錯亂</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="rule-layer">
+      <div class="rule-layer-head" style="background:#fef3c7;color:#854d0e">第 2 層 · 師資合規：學校制度要求</div>
+      <table>
+        <tbody>
+          <tr><td style="width:35%"><b>IB 課程預設只列 IB 老師</b></td><td>IB 有師資授權規範，非 IB 老師不能代</td></tr>
+          <tr><td><b>IB 模式可切換</b></td><td>緊急狀況下行政可關掉限制，留彈性</td></tr>
+          <tr><td><b>連堂課（探究類）一起處理</b></td><td>IPSS、物理地科探究、化學生物探究是兩節一組，拆代會打斷教學設計</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="rule-layer">
+      <div class="rule-layer-head" style="background:#dbeafe;color:#1e3a8a">第 3 層 · 專業適配：教學品質排序</div>
+      <table>
+        <tbody>
+          <tr><td style="width:35%"><b>第一優先：同班不同科老師</b></td><td>他們是<b>調課</b>最佳人選——直接互換，總時數不變、學生面對同一群老師</td></tr>
+          <tr><td><b>第二優先：同領域老師</b></td><td>專業對口，學生不會有銜接落差</td></tr>
+          <tr><td><b>第三優先：其他科老師</b></td><td>當前兩層都不可行時的備案，預設折疊</td></tr>
+          <tr><td><b>連堂課優先「兩節都能代」的人</b></td><td>一人代兩節，比兩個人各代一節順暢</td></tr>
+          <tr><td><b>同層內：導師優先</b></td><td>導師最熟學生，能維持課堂秩序</td></tr>
+          <tr><td><b>同層內：同細項專長優先</b></td><td>化學請假時，化學老師比生物老師更適合（雖同屬自然）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="rule-layer">
+      <div class="rule-layer-head" style="background:#d1fae5;color:#065f46">第 4 層 · 體驗細節：日常用起來才順</div>
+      <table>
+        <tbody>
+          <tr><td style="width:35%"><b>同層內依姓名筆劃排序</b></td><td>順序穩定、公平，避免每次刷新都不同</td></tr>
+          <tr><td><b>身分記憶（localStorage）</b></td><td>老師不用每次重選自己</td></tr>
+          <tr><td><b>單檔離線</b></td><td>學校網路不穩、會議室沒訊號也能用</td></tr>
+          <tr><td><b>可截圖、可分享</b></td><td>順著老師既有 LINE 工作流，不強迫改習慣</td></tr>
+          <tr><td><b>對方視角的課表截圖</b></td><td>對方一看就懂「我哪節要代、哪節不用上」</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 深度技術說明 -->
+  <h2>深度技術說明：我們真的知道它怎麼運作</h2>
+  <div class="card">
+    <p>這個區塊讓你在<b>使用者反映問題時，知道從哪裡下手</b>。所有邏輯都集中在
+      <code>代課查詢_全校.html</code> 的 <code>&lt;script&gt;</code> 區段，主要是 6 個關鍵函式。</p>
+
+    <h3>一、整個邏輯的呼叫鏈</h3>
+    <div class="mermaid">
+flowchart TD
+    USER([使用者點請假節次]) --> A[getCandidateGroups<br/>line ~1100]
+    A --> B[isOccupied<br/>line 424<br/>濾掉該節有課的人]
+    A --> C[getPairedPeriod<br/>line 1088<br/>偵測連堂]
+    C --> D[inquiryPositionFor<br/>line 477<br/>判斷是 top/bottom]
+    A --> E[isIbCourse<br/>line 492<br/>偵測 IB 課程]
+    A --> F[canSwapMyKlass<br/>line 1129<br/>有沒有可調課時段]
+    A --> G[sortCandidates<br/>line 1197<br/>排序四層 tiebreaker]
+    G --> RENDER([renderGroups<br/>line 1242<br/>畫成 UI])
+
+    style A fill:#fef3c7,stroke:#f59e0b
+    style G fill:#fef3c7,stroke:#f59e0b
+    style RENDER fill:#d1fae5,stroke:#059669
+    </div>
+
+    <h3>二、六個關鍵函式（出問題時直接搜這些名字）</h3>
+    <table>
+      <thead><tr><th>函式</th><th>位置</th><th>負責什麼</th><th>常見問題對應</th></tr></thead>
+      <tbody>
+        <tr><td><code>isOccupied()</code></td><td>line 424</td><td>判斷某老師在某節是否有課</td><td>「明明有空，卻被列入有課」→ 檢查 CSV 該老師那節的欄位</td></tr>
+        <tr><td><code>isIbCourse()</code></td><td>line 492</td><td>用課名是否「不含中文字」判斷 IB</td><td>「IB 課沒被偵測」→ 課名出現中文字（如「IB物理」會被當成非 IB）</td></tr>
+        <tr><td><code>inquiryPositionFor()</code></td><td>line 477</td><td>白名單偵測連堂（IPSS、物理地科探究、化學生物探究）</td><td>「新的連堂課沒被偵測」→ 加進 <code>isInquiryCourse()</code> 白名單</td></tr>
+        <tr><td><code>getCandidateGroups()</code></td><td>line 1100</td><td>核心：篩 + 分群</td><td>「分群不對」→ 在這裡 print 各個 group</td></tr>
+        <tr><td><code>sortCandidates()</code></td><td>line 1197</td><td>排序四層 tiebreaker</td><td>「順序怪怪的」→ 從 homeroom → detail → strokes → code 逐一檢查</td></tr>
+        <tr><td><code>isSwapOption()</code></td><td>line 632</td><td>畫面上哪些格子可點來「調課」</td><td>「該格不能點」→ 看是否撞了同班限制（line 648–651）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>三、資料從哪裡來？（出資料錯誤時的源頭）</h3>
+    <div class="mermaid">
+flowchart LR
+    CSV[(全校課表_長表.csv)] --> PY[build_web_school.py<br/>line 44-69<br/>產生 DATA 與 TEACHERS]
+    STR[(_strokes.json<br/>姓名筆劃)] --> PY
+    PY -->|注入 __DATA__ / __TEACHERS__<br/>line 1582-1588| HTML[代課查詢_全校.html]
+    HTML -->|讀進 JS| RUN([執行期：DATA、TEACHERS 全域變數])
+    style PY fill:#dbeafe,stroke:#1d4ed8
+    style RUN fill:#d1fae5,stroke:#059669
+    </div>
+    <ul class="bullets">
+      <li><b>老師資料錯了</b>（科目、IB 標記、導師班級）→ 改 CSV 後重跑 <code>build_web_school.py</code></li>
+      <li><b>筆劃排序怪</b> → 看 <code>_strokes.json</code>（從 <code>_unihan_irg.txt</code> 產生）</li>
+      <li><b>UI 壞了/邏輯錯</b> → 直接改 HTML 對應函式，<b>不必</b>重跑 Python（HTML 自帶完整邏輯）</li>
+    </ul>
+
+    <h3>四、互動式：規則組合模擬器</h3>
+    <p>調整下方條件，看候選人怎麼被分群與排序。每次切換都會顯示<b>系統當下做的判斷</b>。</p>
+
+    <div id="sim" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:16px">
+      <div class="sim-row">
+        <label><input type="checkbox" id="sim-paired"> 這節是連堂課</label>
+        <label><input type="checkbox" id="sim-ib"> 這節是 IB 課（化學2C → IB Chemistry）</label>
+        <label><input type="checkbox" id="sim-ibonly" checked> IB 模式開啟（只列 IB 老師）</label>
+      </div>
+      <div id="sim-trace" style="margin-top:14px"></div>
+      <div id="sim-result" style="margin-top:14px"></div>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin-top:8px">這個模擬器用的<b>候選人池是虛擬的 8 位老師</b>，純粹示範規則邏輯。實際工具會跑完整全校 130 位。</p>
+  </div>
+
+  <footer>
+    產品說明 · 代課查詢_全校 · 給教務處與行政主管的快速導覽
+  </footer>
+</div>
+
+<script>
+// === 規則組合模擬器 ===
+// 虛擬候選人池：模擬請假者 = 李老師（化學，教 2C 班，2C 不是導師）
+// 請假課程 = 化學2C 第3節
+const SIM_POOL = [
+  { code:"T01", name:"王曉明", subject:"化學", detail:"化學",   isIB:true,  homeroom:"2C", strokes:24, freeThisPeriod:true,  freePaired:true,  teachesMyClass:true,  canSwapMyClass:true  },
+  { code:"T02", name:"林志偉", subject:"化學", detail:"化學",   isIB:true,  homeroom:null, strokes:30, freeThisPeriod:true,  freePaired:false, teachesMyClass:false, canSwapMyClass:false },
+  { code:"T03", name:"陳美玲", subject:"自然", detail:"生物",   isIB:true,  homeroom:null, strokes:35, freeThisPeriod:true,  freePaired:true,  teachesMyClass:false, canSwapMyClass:false },
+  { code:"T04", name:"張大華", subject:"數學", detail:"數學",   isIB:false, homeroom:"2C", strokes:20, freeThisPeriod:true,  freePaired:false, teachesMyClass:true,  canSwapMyClass:true  },
+  { code:"T05", name:"黃淑芬", subject:"英文", detail:"英文",   isIB:false, homeroom:null, strokes:32, freeThisPeriod:true,  freePaired:false, teachesMyClass:false, canSwapMyClass:false },
+  { code:"T06", name:"吳建宏", subject:"化學", detail:"化學",   isIB:false, homeroom:null, strokes:28, freeThisPeriod:true,  freePaired:true,  teachesMyClass:false, canSwapMyClass:false },
+  { code:"T07", name:"周文君", subject:"國文", detail:"國文",   isIB:false, homeroom:null, strokes:18, freeThisPeriod:false, freePaired:false, teachesMyClass:false, canSwapMyClass:false },
+  { code:"T08", name:"趙俊傑", subject:"自然", detail:"物理",   isIB:true,  homeroom:null, strokes:22, freeThisPeriod:true,  freePaired:false, teachesMyClass:false, canSwapMyClass:false },
+];
+
+const MY_SUBJECT = "化學";
+const MY_DETAIL  = "化學";
+const MY_CLASS   = "2C";
+
+function simSortCandidates(arr){
+  return arr.slice().sort((a,b)=>{
+    const aHr = a.homeroom===MY_CLASS?0:1;
+    const bHr = b.homeroom===MY_CLASS?0:1;
+    if(aHr!==bHr) return aHr-bHr;
+    const aDt = a.detail===MY_DETAIL?0:1;
+    const bDt = b.detail===MY_DETAIL?0:1;
+    if(aDt!==bDt) return aDt-bDt;
+    if(a.strokes!==b.strokes) return a.strokes-b.strokes;
+    return a.code.localeCompare(b.code);
+  });
+}
+
+function simCompute(){
+  const paired = document.getElementById("sim-paired").checked;
+  const ib     = document.getElementById("sim-ib").checked;
+  const ibOnly = document.getElementById("sim-ibonly").checked;
+
+  const trace = [];
+  const groups = [];
+
+  trace.push(`<b>Step 1</b> 全部 ${SIM_POOL.length} 位老師，先用 <code>isOccupied()</code> 濾掉該節有課的人`);
+  let free = SIM_POOL.filter(t=>t.freeThisPeriod);
+  trace.push(`　→ 剩 ${free.length} 位空堂候選人（${free.map(t=>t.name).join("、")}）`);
+
+  let bothAll = [];
+  if(paired){
+    bothAll = free.filter(t=>t.freePaired);
+    const codes = new Set(bothAll.map(t=>t.code));
+    free = free.filter(t=>!codes.has(t.code));
+    trace.push(`<b>Step 2</b> 偵測到<b>連堂</b> → <code>getPairedPeriod()</code> 抓出第二節`);
+    trace.push(`　→ 兩節都有空者：${bothAll.length} 位（${bothAll.map(t=>t.name).join("、")||"無"}），優先成群顯示`);
+  }
+
+  trace.push(`<b>Step 3</b> 用 <code>isIbCourse()</code> 判斷課程屬性：${ib?"<b>IB 課程</b>":"非 IB 課程"}`);
+
+  if(ib){
+    if(ibOnly) trace.push(`　→ IB 模式開啟，<b>非 IB 老師全部隱藏</b>`);
+    else        trace.push(`　→ IB 模式關閉，仍會列出非 IB 老師（降低優先級）`);
+
+    const ibBoth = bothAll.filter(t=>t.isIB);
+    if(ibBoth.length) groups.push({label:"連堂優先 · 兩節都能代的 IB 老師", teachers:ibBoth, expanded:true});
+
+    const ibSameSub = free.filter(t=>t.isIB && t.subject===MY_SUBJECT);
+    const ibSameKlass = free.filter(t=>t.isIB && t.subject!==MY_SUBJECT && t.teachesMyClass && t.canSwapMyClass);
+    const ibSameKlassCodes = new Set(ibSameKlass.map(t=>t.code));
+    const ibOther = free.filter(t=>t.isIB && t.subject!==MY_SUBJECT && !ibSameKlassCodes.has(t.code));
+    groups.push({label:"IB · 第一優先 · 相同任課班級的老師（可調課）", teachers:ibSameKlass, expanded:true});
+    groups.push({label:"IB · 第二優先 · 同領域（化學）的老師", teachers:ibSameSub, expanded:true});
+    groups.push({label:"IB · 其他科別選擇", teachers:ibOther, expanded:false});
+
+    if(!ibOnly){
+      const nonIbBoth = bothAll.filter(t=>!t.isIB);
+      if(nonIbBoth.length) groups.push({label:"連堂 · 兩節都能代的其他老師", teachers:nonIbBoth, expanded:true});
+      const sameSub = free.filter(t=>!t.isIB && t.subject===MY_SUBJECT);
+      const other   = free.filter(t=>!t.isIB && t.subject!==MY_SUBJECT);
+      groups.push({label:"第二優先 · 同領域（化學）的老師", teachers:sameSub, expanded:true});
+      groups.push({label:"其他科別選擇", teachers:other, expanded:false});
+    }
+  } else {
+    if(bothAll.length) groups.push({label:"連堂優先 · 兩節都能代的老師", teachers:bothAll, expanded:true});
+    const sameSub = free.filter(t=>t.subject===MY_SUBJECT);
+    const sameKlass = free.filter(t=>t.subject!==MY_SUBJECT && t.teachesMyClass && t.canSwapMyClass);
+    const sameKlassCodes = new Set(sameKlass.map(t=>t.code));
+    const other = free.filter(t=>t.subject!==MY_SUBJECT && !sameKlassCodes.has(t.code));
+    groups.push({label:"第一優先 · 相同任課班級的老師（可調課）", teachers:sameKlass, expanded:true});
+    groups.push({label:"第二優先 · 同領域（化學）的老師", teachers:sameSub, expanded:true});
+    groups.push({label:"其他科別選擇", teachers:other, expanded:false});
+  }
+
+  trace.push(`<b>Step 4</b> 每群內用 <code>sortCandidates()</code> 排序：導師 → 同細項專長(★) → 姓名筆劃 → 教師代碼`);
+
+  document.getElementById("sim-trace").innerHTML =
+    trace.map(t=>`<div class="sim-trace-line">${t}</div>`).join("");
+
+  document.getElementById("sim-result").innerHTML = groups.map(g=>{
+    const sorted = simSortCandidates(g.teachers);
+    const chips = sorted.length
+      ? sorted.map(t=>{
+          const cls = "sim-teacher" + (t.homeroom===MY_CLASS?" hr":"") + (t.detail===MY_DETAIL && t.homeroom!==MY_CLASS?" star":"");
+          return `<span class="${cls}">${t.name}</span>`;
+        }).join("")
+      : `<span style="color:var(--muted);font-size:13px">（無人符合）</span>`;
+    return `<div class="sim-group"><h4>${g.label}</h4>${chips}</div>`;
+  }).join("");
+}
+
+["sim-paired","sim-ib","sim-ibonly"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", simCompute);
+});
+simCompute();
+</script>
+</body>
+</html>
