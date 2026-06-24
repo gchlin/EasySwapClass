@@ -19,6 +19,15 @@ PY = sys.executable
 PDF = ROOT / "source" / "全校課表.pdf"
 INDEX = ROOT / "school_wide" / "index.html"
 MASTER = ROOT / "代課查詢_發布.html"
+VERSION_FILE = ROOT / "school_wide" / "_data_version.txt"
+
+
+def prompt_version():
+    """詢問資料版本，直接 Enter 沿用上次。回傳要附加的參數 list。"""
+    cur = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else ""
+    hint = f"（目前：{cur}，直接 Enter 沿用）" if cur else "（如 114-2）"
+    v = input(f"請輸入資料版本 {hint}：").strip()
+    return ["--version", v] if v else []
 
 
 def run(script, *args):
@@ -87,11 +96,12 @@ def main():
             if not PDF.exists():
                 print("[停止] 請先把新學期 PDF 命名為「全校課表.pdf」放進 source/ 再選 1。")
                 continue
-            if run("extract_school.py") and run("build_data.py"):
+            ver = prompt_version()
+            if run("extract_school.py") and run("build_data.py", *ver):
                 run("build_single.py")
                 deploy_ui()
         elif choice == "2":
-            run("build_data.py")
+            run("build_data.py", *prompt_version())
         elif choice == "3":
             run("build_single.py")
         elif choice == "4":

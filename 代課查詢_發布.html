@@ -1517,7 +1517,7 @@ init();
 
 <div id="version-modal">
   <div class="modal-card">
-    <h2>資料版本 114-2</h2>
+    <h2 id="data-version">資料版本</h2>
     <p class="modal-sub">這個程式只能幫忙對課表找時段，但不知道其他調代課規則。</p>
     <button class="primary" id="version-modal-ok">我知道了</button>
   </div>
@@ -1525,6 +1525,9 @@ init();
 <script>
 (function () {
   const modal = document.getElementById("version-modal");
+  const ver = (window.__DATA_VERSION__ || "").trim();
+  document.getElementById("data-version").textContent =
+    ver ? "資料版本 " + ver : "資料版本（未標示）";
   function closeModal() { modal.style.display = "none"; }
   document.getElementById("version-modal-ok").addEventListener("click", closeModal);
   modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });

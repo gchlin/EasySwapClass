@@ -24,6 +24,18 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CSV = ROOT / "school_wide" / "全校課表_長表.csv"
 DEFAULT_OUT = ROOT / "school_wide" / "data.js"
 STROKES_JSON = ROOT / "school_wide" / "_strokes.json"
+VERSION_FILE = ROOT / "school_wide" / "_data_version.txt"
+
+
+def resolve_version(cli_version):
+    """版本字串來源：--version 優先（並記住），否則沿用上次記住的，否則空。"""
+    if cli_version is not None:
+        v = cli_version.strip()
+        VERSION_FILE.write_text(v, encoding="utf-8")
+        return v
+    if VERSION_FILE.exists():
+        return VERSION_FILE.read_text(encoding="utf-8").strip()
+    return ""
 
 # 姓名筆劃表（由 build_strokes.py 從 Unihan 抽取）。與 build_web_school.name_strokes 同邏輯。
 strokes_table = {}
@@ -80,19 +92,22 @@ def main():
     ap = argparse.ArgumentParser(description="CSV → data.js（資料注入用）")
     ap.add_argument("--csv", default=str(DEFAULT_CSV), help="來源 CSV 路徑")
     ap.add_argument("--out", default=str(DEFAULT_OUT), help="輸出 data.js 路徑")
+    ap.add_argument("--version", default=None, help="資料版本字串（如 114-2）；不給則沿用上次")
     args = ap.parse_args()
 
+    version = resolve_version(args.version)
     with open(args.csv, encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     data, teachers = build_data_and_teachers(rows)
 
     js = (
+        "window.__DATA_VERSION__ = " + json.dumps(version, ensure_ascii=False) + ";\n"
         "window.__DATA__ = " + json.dumps(data, ensure_ascii=False) + ";\n"
         "window.__TEACHERS__ = " + json.dumps(teachers, ensure_ascii=False) + ";\n"
     )
     Path(args.out).write_text(js, encoding="utf-8")
     print(f"[ok] 已寫出 {args.out}")
-    print(f"     資料：{len(data)} 筆課程 / {len(teachers)} 位老師")
+    print(f"     資料版本：{version or '（未標示）'}／{len(data)} 筆課程 / {len(teachers)} 位老師")
 
 
 if __name__ == "__main__":
