@@ -10,6 +10,7 @@
 """
 import argparse
 import csv
+import json
 import re
 from pathlib import Path
 from collections import Counter, defaultdict
@@ -160,6 +161,51 @@ def main(version):
         for c, n in items:
             md.append(f"| `{c}` | {n} |")
         md.append("")
+
+    # ── 9. 各科領域時間 ──
+    md.append("## 9. 各科領域時間\n")
+    ryu_json = paths.ryu_json_path(version)
+    if not ryu_json.exists():
+        md.append("（尚無 `領域時間.json`；請先跑完整抽取，或 "
+                  "`python scripts/extract_school.py --ryu-only` 後再產此表）\n")
+    else:
+        md.append("依「主授科目」分組，列出各科教師的領域時間時段"
+                  "（資料來源：`領域時間.json`）。同科若有人時段不同會分列。\n")
+        DAY_NAMES = {1: "一", 2: "二", 3: "三", 4: "四", 5: "五"}
+
+        def slot_str(slot):
+            d, p = slot
+            return f"{DAY_NAMES.get(d, d)}{p}"
+
+        ryu = json.loads(ryu_json.read_text(encoding="utf-8"))
+        slots = defaultdict(set)   # tcode → {(day, period)}
+        ryu_name = {}
+        for e in ryu:
+            slots[e["tcode"]].add((e["day"], e["period"]))
+            ryu_name[e["tcode"]] = e["tname"]
+
+        by_subject = defaultdict(list)  # subject → [(code, name, slotset)]
+        for code, sset in slots.items():
+            subject = teachers[code][1] if code in teachers else "（不在課表）"
+            name = teachers[code][0] if code in teachers else ryu_name.get(code, code)
+            by_subject[subject].append((code, name, sset))
+
+        order2 = SUBJECT_ORDER + [s for s in sorted(by_subject) if s not in SUBJECT_ORDER]
+        for s in order2:
+            members = by_subject.get(s)
+            if not members:
+                continue
+            md.append(f"### {s}（{len(members)} 位有領域時間）\n")
+            groups = defaultdict(list)  # frozenset(slots) → [(code, name)]
+            for code, name, sset in members:
+                groups[frozenset(sset)].append((code, name))
+            md.append("| 領域時間時段 | 人數 | 老師 |")
+            md.append("|--------------|------|------|")
+            for sset, people in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+                slotcell = "、".join(slot_str(x) for x in sorted(sset)) or "（無）"
+                names_cell = "、".join(f"{n}({c})" for c, n in sorted(people))
+                md.append(f"| {slotcell} | {len(people)} | {names_cell} |")
+            md.append("")
 
     out_md.write_text("\n".join(md), encoding="utf-8")
     print(f"[ok] 已寫出 {out_md}")
