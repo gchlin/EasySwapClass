@@ -291,3 +291,59 @@ M36（IB 雙主修 物理+數學）主授=數（prefix override），細科=物�
 ## 未來改進可能
 
 待辦清單已搬移至 [TODO.md](TODO.md)（含「降低介面文字量」討論記錄）。
+
+---
+
+## 階段十二：v2 架構重構（2026-06）
+
+### 核心決策：資料 / UI 分離
+
+舊架構（`build_web_school.py` 整頁生成）的問題：每次 UI 改版後，HTML 樣板與 Python 程式碼需要同步維護兩份；任何一方有變動就容易漂移。
+
+v2 改為：
+
+- **UI 母檔**（`代課查詢_發布.html`）：唯一手改 UI 的地方，可以用瀏覽器直接預覽（無 data.js 時顯示「請放 data.js」提示）。內含 `<script src="data.js">` 外部引用，標題與確認視窗的版本號由 `window.__DATA_VERSION__` 動態注入。
+- **資料 JS**（`data.js`）：由 `build_data.py` 從 CSV 產出，內含 `window.__DATA_VERSION__`、`window.__DATA__`、`window.__TEACHERS__` 三個全域變數。
+
+更新資料只需重生 data.js，HTML 一字不改。改 UI 只動母檔，不需要把程式碼同步到生成器。
+
+### 雙路徑發布設計
+
+同時支援兩種用途，均為有效發布路徑：
+
+- **(A) 單檔 HTML**（`versions/<版本>/代課查詢_單檔.html`）：`build_single.py` 把母檔的 `<script src="data.js">` 替換成內嵌資料，產出自我包含的單檔。適合自己手機 / email / 離線雙擊。
+- **(B) live/**：`menu.py` 負責發布，把最新 data.js 複製到 live/，同時複製母檔為 live/index.html。nginx 服務這個固定目錄，URL 永遠穩定。
+
+舊架構以 `school_wide/` 作為 nginx 服務目錄，已一次性切換為 `live/`；不需改 nginx.conf，只是 web root 下的路徑變動。
+
+### 依版本歸檔 + 穩定 live
+
+產出依版本歸檔在 `versions/<版本>/`，live/ 只放目前發布版。決策：
+
+- 同一版本重跑 = 覆蓋（重抽 CSV 前加確認提示）。
+- 不做「(1)(2)(3)」序號編號：版本字串本身即版本識別（`114-2`、`115-1`）；要保留舊版本就用不同版本字串，versions/ 下多個資料夾並存。這樣版本字串同時是資料夾名、頁面顯示版本，沒有映射關係要維護。
+
+目前版本記在 `assets/_current_version.txt`，由 `menu.py` 在發布時寫入；prompt_version() 沿用或允許覆蓋。
+
+### 路徑集中：paths.py
+
+所有腳本的路徑一律從 `scripts/paths.py` 取，不各自硬編。未來若版面再變動，只改這一個檔。
+
+### 領域時間結構化：領域時間.json
+
+`extract_school.py` 新增 `--ryu-only` 參數，可以只重產領域時間而不動 CSV。領域時間另存 `versions/<版本>/領域時間.json`（結構化），供 `audit_categories.py` 的「9. 各科領域時間」一節讀取。過去只輸出 `全校_領域時間.md`（人讀用），現在同時有機器可讀的 JSON 格式。
+
+### 退役自然科版與舊生成器
+
+下列腳本已移入 `scripts/_legacy/` 封存，不再主動維護：
+
+| 腳本 | 退役原因 |
+|------|----------|
+| `build_web_school.py` | 整頁生成器，UI / 資料耦合；由 build_data + build_single 替代 |
+| `build_web.py` | 自然科版流程，停止維護；全校版工具集已取代其角色 |
+| `_gen_sample.py` | 範例 HTML 注入（依賴 build_web_school 的 HTML 結構，隨整頁生成器退役） |
+| `_inject_tour.py` | 新手引導注入（同上，整頁生成器退役後無用） |
+
+`extract_v2.py` 雖舊但保留：`extract_school.py` 仍 import 其 `parse_cell`、`extract_teacher_header` 等解析函式，移除會破壞 extract 流程。
+
+`natural_science/` 資料夾（自然科 CSV / MD / HTML）停止維護，維持現有狀態，不進一步更新。
