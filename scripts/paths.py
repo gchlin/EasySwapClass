@@ -19,7 +19,7 @@ VERSIONS = ROOT / "versions"
 LIVE = ROOT / "live"
 ASSETS = ROOT / "assets"
 
-MASTER = ROOT / "代課查詢_發布.html"
+MASTER = ROOT / "template" / "代課查詢_發布.html"
 
 # 共用資源（跨版穩定）
 STROKES_JSON = ASSETS / "_strokes.json"

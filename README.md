@@ -1,6 +1,6 @@
 # 尋找調代課小幫手（全校版）
 
-全校 130 位老師課表的數位化、查詢、代課工具集。v2 架構採「資料與 UI 分離」：UI 只維護一份母檔 `代課查詢_發布.html`；課表資料獨立產出為 `data.js`，每次換學期或微調只需重生資料，HTML 一字不改。
+全校 130 位老師課表的數位化、查詢、代課工具集。v2 架構採「資料與 UI 分離」：UI 只維護一份母檔 `template/代課查詢_發布.html`；課表資料獨立產出為 `data.js`，每次換學期或微調只需重生資料，HTML 一字不改。
 
 > 需求演進與設計決策記錄：[DEVLOG.md](DEVLOG.md)
 > 維護者操作手冊（非技術友善）：[維護說明.md](維護說明.md)
@@ -16,7 +16,7 @@
 - `README.md`、`DEVLOG.md`、`維護說明.md`
 - `.gitignore`
 - `scripts/`（含 `scripts/_legacy/`）
-- `代課查詢_發布.html`（UI 母檔，不含實際課表資料）
+- `template/代課查詢_發布.html`（UI 母檔，不含實際課表資料）
 - `assets/_html2canvas.min.js`（唯一例外上傳的 assets 檔）
 - `docs/產品說明_代課查詢_全校.html`
 
@@ -46,10 +46,11 @@ git status --ignored
 
 ```
 Switch_time/
-├── 代課查詢_發布.html      UI 母檔：唯一手改 UI 的檔（可進 git）。
-│                           內含 <script src="data.js"> 引用；
-│                           單獨開（無 data.js）會顯示「請放 data.js」提示。
-│                           標題與確認視窗用 window.__DATA_VERSION__ 動態顯示版本。
+├── template/               UI 母檔資料夾（請勿刪除）：
+│   ├── 代課查詢_發布.html    唯一手改 UI 的檔（可進 git，不含實際資料）。
+│   │                         內含 <script src="data.js"> 引用；單獨開會顯示
+│   │                         「請放 data.js」；版本由 window.__DATA_VERSION__ 動態顯示。
+│   └── 請勿刪除_說明.md      說明母檔角色與救回方式
 ├── 更新課表.bat            雙擊入口 → 跑 scripts/menu.py
 ├── README.md / DEVLOG.md / 維護說明.md / .gitignore
 ├── scripts/
@@ -115,7 +116,7 @@ versions/114-2/全校課表_長表.csv   ← 單一真相來源
        ▼
       versions/114-2/代課查詢_單檔.html  ← 自我包含，離線雙擊可用
 
-代課查詢_發布.html（母檔，手動維護 UI）
+template/代課查詢_發布.html（母檔，手動維護 UI）
    │
    │  [menu 發布 / 選單 [5]]
    ▼
@@ -163,7 +164,8 @@ live/index.html   ← 執行時引用同層的 live/data.js
 
 | 路徑 | 用途 | 是否上傳 |
 |------|------|----------|
-| `代課查詢_發布.html` | UI 母檔；唯一手改 UI 的檔 | ✓ |
+| `template/代課查詢_發布.html` | UI 母檔；唯一手改 UI 的檔（請勿刪除） | ✓ |
+| `template/請勿刪除_說明.md` | 母檔角色與救回方式說明 | ✓ |
 | `更新課表.bat` | 雙擊入口，呼叫 menu.py | ✓ |
 | `source/全校課表.pdf` | 原始 PDF（私有） | ✗ |
 | `versions/<版本>/全校課表_長表.csv` | 單一真相 CSV（私有） | ✗ |
@@ -196,7 +198,8 @@ live/index.html   ← 執行時引用同層的 live/data.js
 [2] 微調 CSV 後重生 data.js 並發布（nginx 立即更新）
 [3] 只產單檔 HTML（自己手機 / email）
 [4] 分類確認表，人工檢查
-[5] 把母檔重新部署到 live/（改完 UI 後用）
+[5] 重新產生 live 網頁 index.html（改完 UI、或 live 的 html 不見了時）
+[6] 修復母檔（連 template 母檔都不見時，從 live 或最新單檔重建）
 [H] 使用說明      [0] 離開
 ```
 
@@ -207,7 +210,7 @@ live/index.html   ← 執行時引用同層的 live/data.js
 | 改幾筆 CSV 資料，更新給老師看 | 編輯 `versions/<版本>/全校課表_長表.csv` → 選單 [2] |
 | 要產單檔給自己手機 / email | 選單 [3] |
 | 換學期、拿到新 PDF | 新 PDF 命名 `全校課表.pdf` 放 `source/` → 選單 [1] 輸入新版本 |
-| 改 UI 外觀 / 文字 | 只編輯 `代課查詢_發布.html` → 選單 [5] 部署 → [3] 重產單檔 |
+| 改 UI 外觀 / 文字 | 只編輯 `template/代課查詢_發布.html` → 選單 [5] 部署 → [3] 重產單檔 |
 | 人工確認分類正確性 | 選單 [4] → 看 `versions/<版本>/分類確認表.md` |
 
 ### 指令行對照（手動執行）
@@ -252,8 +255,8 @@ python scripts/build_strokes.py
 | 課程名稱 → 細科目（classify_course_detail） | `scripts/extract_school.py` |
 | 教師類別（IB / 普通班）判斷 | `scripts/extract_school.py` |
 | 領域時間偵測（course == "領域時間"） | `scripts/extract_school.py` |
-| JS 端 IB 課程偵測（決定走幾階優先順序） | `代課查詢_發布.html` 的 `isIbCourse()`（課名不含中文＝IB） |
-| JS 端連堂課偵測（探究 / IPSS） | `代課查詢_發布.html` 的 `isInquiryCourse()` |
+| JS 端 IB 課程偵測（決定走幾階優先順序） | `template/代課查詢_發布.html` 的 `isIbCourse()`（課名不含中文＝IB） |
+| JS 端連堂課偵測（探究 / IPSS） | `template/代課查詢_發布.html` 的 `isInquiryCourse()` |
 
 ---
 
@@ -261,7 +264,7 @@ python scripts/build_strokes.py
 
 設計取捨：
 
-- **資料與 UI 分離**：UI 只維護 `代課查詢_發布.html` 一份；更新資料只重生 `data.js`，HTML 一字不改。避免舊架構「整頁重生器」在 UI 功能改版後要同步兩份程式碼的問題。
+- **資料與 UI 分離**：UI 只維護 `template/代課查詢_發布.html` 一份；更新資料只重生 `data.js`，HTML 一字不改。避免舊架構「整頁重生器」在 UI 功能改版後要同步兩份程式碼的問題。
 - **CSV 為單一真相來源**：所有產出（data.js、單檔 HTML、分類確認表）都從 CSV 衍生，不會資料漂移。
 - **兩條並存發布路徑**：(A) 單檔 HTML 供自己手機 / 離線使用；(B) live/ 供內網給老師用穩定網址。
 - **data.js 引用而非資料嵌入母檔**：母檔可在瀏覽器直接預覽（無 data.js 時顯示提示），開發體驗好；發布到 live/ 時引用同層 data.js，資料與 UI 可獨立更新。

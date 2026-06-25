@@ -347,3 +347,9 @@ v2 改為：
 `extract_v2.py` 雖舊但保留：`extract_school.py` 仍 import 其 `parse_cell`、`extract_teacher_header` 等解析函式，移除會破壞 extract 流程。
 
 `natural_science/` 資料夾（自然科 CSV / MD / HTML）停止維護，維持現有狀態，不進一步更新。
+
+### 母檔保護與修復（template/ + 選單 [6]）
+
+UI 母檔移到專屬的 `template/代課查詢_發布.html`（加 `請勿刪除_說明.md`），讓「唯一 UI 真相來源」的角色一目了然、不易誤刪。
+
+新增選單 [6] 修復母檔：母檔不見時自動重建——優先從 `live/index.html`（母檔的逐字複本）還原；若 live 也沒了，從最新的 `versions/*/代課查詢_單檔.html` 反向重建（把內嵌資料區塊換回 `<script src="data.js">`）。選單開機時若偵測母檔或 live/index.html 不存在會顯示提示。不復活已退役的整頁生成器，維持單一 UI 來源。
