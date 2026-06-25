@@ -48,3 +48,15 @@ desktop.ini
 
 # Local scratch / debug outputs
 /tmp_*.txt
+
+# Staged analysis outputs (contain real timetable data) — keep local.
+/Analysis_113/
+/Analysis_114/
+
+# Split scratch scripts used while editing extract_school.py — keep local.
+/scripts/extract_school_1.py
+/scripts/extract_school_2.py
+
+# Legacy school-wide working folder (real timetable data + name-bearing HTML).
+# Superseded by the v2 versions/ + live/ layout; keep local, never track.
+/school_wide/
