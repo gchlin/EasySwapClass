@@ -13,18 +13,18 @@ import json
 import urllib.request
 import zipfile
 import io
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-CSV_PATH = ROOT / "school_wide" / "全校課表_長表.csv"
-OUT_JSON = ROOT / "school_wide" / "_strokes.json"
-CACHE_PATH = ROOT / "school_wide" / "_unihan_irg.txt"
+import paths
+
+OUT_JSON = paths.STROKES_JSON
+CACHE_PATH = paths.UNIHAN_CACHE
 UNIHAN_URL = "https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip"
 
 
 def main():
-    # 1. 抓出所有教師姓名的 unique 漢字
-    with open(CSV_PATH, encoding="utf-8-sig") as f:
+    # 1. 抓出所有教師姓名的 unique 漢字（用目前版本的 CSV）
+    csv_path = paths.csv_path(paths.current_version())
+    with open(csv_path, encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     chars = set()
     for r in rows:

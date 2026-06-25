@@ -1,46 +1,31 @@
 """build_data.py  (v2 資料注入：CSV → data.js)
 
-把 全校課表_長表.csv 轉成 data.js，內容為兩個全域變數：
+把某版本的 全校課表_長表.csv 轉成該版的 data.js，內容為三個全域變數：
+    window.__DATA_VERSION__ = "114-2";
     window.__DATA__     = [...每一筆課程...];
     window.__TEACHERS__ = [...每位老師...];
 
-「發布版」HTML 用 <script src="data.js"></script> 引用它；更新資料只要重跑本腳本，
-HTML 一個字都不用改。data.js 與 HTML 放同層即可（nginx 或本機）。
+「發布版」HTML 用 <script src="data.js"></script> 引用它。本腳本只寫到
+versions/<版本>/data.js；「複製到 live/（發布）」由選單負責，避免建舊版時誤動線上。
 
 刻意寫成「自包含」：直接讀 CSV 既有欄位（含已分類好的『細科目』），
 不 import build_web_school / extract_school，避免牽動整頁重生或其他相依。
-唯一外部相依是 _strokes.json（姓名筆劃，用於候選排序），缺檔則筆劃以 0 計。
+唯一外部相依是 assets/_strokes.json（姓名筆劃），缺檔則筆劃以 0 計。
 
 用法：
-    python scripts/build_data.py
-    python scripts/build_data.py --csv 路徑.csv --out 路徑.js
+    python scripts/build_data.py                 # 用目前版本
+    python scripts/build_data.py --version 115-1  # 指定版本資料夾
 """
 import argparse
 import csv
 import json
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CSV = ROOT / "school_wide" / "全校課表_長表.csv"
-DEFAULT_OUT = ROOT / "school_wide" / "data.js"
-STROKES_JSON = ROOT / "school_wide" / "_strokes.json"
-VERSION_FILE = ROOT / "school_wide" / "_data_version.txt"
+import paths
 
-
-def resolve_version(cli_version):
-    """版本字串來源：--version 優先（並記住），否則沿用上次記住的，否則空。"""
-    if cli_version is not None:
-        v = cli_version.strip()
-        VERSION_FILE.write_text(v, encoding="utf-8")
-        return v
-    if VERSION_FILE.exists():
-        return VERSION_FILE.read_text(encoding="utf-8").strip()
-    return ""
-
-# 姓名筆劃表（由 build_strokes.py 從 Unihan 抽取）。與 build_web_school.name_strokes 同邏輯。
+# 姓名筆劃表（由 build_strokes.py 從 Unihan 抽取）。
 strokes_table = {}
-if STROKES_JSON.exists():
-    strokes_table = json.loads(STROKES_JSON.read_text(encoding="utf-8"))
+if paths.STROKES_JSON.exists():
+    strokes_table = json.loads(paths.STROKES_JSON.read_text(encoding="utf-8"))
 
 
 def name_strokes(name):
@@ -59,8 +44,7 @@ def name_strokes(name):
 
 
 def build_data_and_teachers(rows):
-    """與 build_web_school.build_data_and_teachers 產出相同結構；
-    courseDetail 直接取 CSV 已分類好的『細科目』欄。"""
+    """產出 (data, teachers)；courseDetail 直接取 CSV 已分類好的『細科目』欄。"""
     data = [
         {
             "tcode": r["教師代碼"],
@@ -90,13 +74,19 @@ def build_data_and_teachers(rows):
 
 def main():
     ap = argparse.ArgumentParser(description="CSV → data.js（資料注入用）")
-    ap.add_argument("--csv", default=str(DEFAULT_CSV), help="來源 CSV 路徑")
-    ap.add_argument("--out", default=str(DEFAULT_OUT), help="輸出 data.js 路徑")
-    ap.add_argument("--version", default=None, help="資料版本字串（如 114-2）；不給則沿用上次")
+    ap.add_argument("--version", default=None, help="版本資料夾名（如 114-2）；預設為目前版本")
+    ap.add_argument("--csv", default=None, help="來源 CSV（預設 versions/<版本>/全校課表_長表.csv）")
+    ap.add_argument("--out", default=None, help="輸出 data.js（預設 versions/<版本>/data.js）")
     args = ap.parse_args()
 
-    version = resolve_version(args.version)
-    with open(args.csv, encoding="utf-8-sig") as f:
+    version = args.version or paths.current_version()
+    if not version:
+        raise SystemExit("[err] 未指定版本，也沒有目前版本。請用 --version 指定。")
+
+    csv_path = args.csv or str(paths.csv_path(version))
+    out_path = args.out or str(paths.data_js_path(version))
+
+    with open(csv_path, encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     data, teachers = build_data_and_teachers(rows)
 
@@ -105,9 +95,10 @@ def main():
         "window.__DATA__ = " + json.dumps(data, ensure_ascii=False) + ";\n"
         "window.__TEACHERS__ = " + json.dumps(teachers, ensure_ascii=False) + ";\n"
     )
-    Path(args.out).write_text(js, encoding="utf-8")
-    print(f"[ok] 已寫出 {args.out}")
-    print(f"     資料版本：{version or '（未標示）'}／{len(data)} 筆課程 / {len(teachers)} 位老師")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(js)
+    print(f"[ok] 已寫出 {out_path}")
+    print(f"     資料版本：{version}／{len(data)} 筆課程 / {len(teachers)} 位老師")
 
 
 if __name__ == "__main__":

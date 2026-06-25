@@ -26,11 +26,18 @@ desktop.ini
 # Natural science files are private and should not be uploaded at all.
 /natural_science/
 
-# Generated or private school-wide data.
-# Markdown reports, classification files, CSV, JSON, and generated HTML can contain timetable data.
-/school_wide/*
-!/school_wide/README.md
-!/school_wide/_html2canvas.min.js
+# v2 layout: per-version outputs, live (nginx), and shared assets all hold
+# timetable data and stay local. CSV/HTML/JSON/MD here are never tracked.
+/versions/
+/live/
+/assets/*
+!/assets/_html2canvas.min.js
+
+# Workload analysis output contains teacher data — keep local.
+/Analysis/
+
+# UI prototype with real names embedded — keep local.
+/docs/_help_demo.html
 
 # This script currently contains hard-coded natural science timetable rows.
 # Refactor it to read an ignored data file before tracking it publicly.

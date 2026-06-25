@@ -8,14 +8,15 @@
   · 自主學習相關課程
   · 各主授科目 → 實際課程清單（看分類器把哪些課歸到哪一類）
 """
+import argparse
 import csv
 import re
 from pathlib import Path
 from collections import Counter, defaultdict
 
+import paths
+
 ROOT = Path(__file__).resolve().parent.parent
-CSV_PATH = ROOT / "school_wide" / "全校課表_長表.csv"
-OUT_MD = ROOT / "school_wide" / "分類確認表.md"
 
 # 與 build_web_school.py / extract_school.py 同步：
 # IB 課程 = 課程名稱不含中文字（純英文/縮寫）
@@ -29,8 +30,10 @@ def is_ib_course(name):
     return not any("一" <= c <= "鿿" for c in name)
 
 
-def main():
-    with open(CSV_PATH, encoding="utf-8-sig") as f:
+def main(version):
+    csv_path = paths.csv_path(version)
+    out_md = paths.audit_path(version)
+    with open(csv_path, encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
 
     # ── 1. 教師清單與分類 ──
@@ -158,9 +161,15 @@ def main():
             md.append(f"| `{c}` | {n} |")
         md.append("")
 
-    OUT_MD.write_text("\n".join(md), encoding="utf-8")
-    print(f"[ok] 已寫出 {OUT_MD}")
+    out_md.write_text("\n".join(md), encoding="utf-8")
+    print(f"[ok] 已寫出 {out_md}")
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser(description="全校 CSV → 分類確認表.md")
+    ap.add_argument("--version", default=None, help="版本資料夾名；預設為目前版本")
+    args = ap.parse_args()
+    version = args.version or paths.current_version()
+    if not version:
+        raise SystemExit("[err] 未指定版本，也沒有目前版本。請用 --version 指定。")
+    main(version)

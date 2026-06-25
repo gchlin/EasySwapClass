@@ -2,22 +2,21 @@
 從 全校課表.pdf 抽取資料，輸出全校 CSV + 報告。
 重用 extract_v2.py 的解析規則（parse_cell、normalize_course/room）。
 """
+import argparse
 import csv
+import json
 import re
 from pathlib import Path
 from collections import Counter, defaultdict
 import pdfplumber
 
+import paths
 from extract_v2 import (
     parse_cell, extract_teacher_header,
     ROW_PERIOD, DAY_COL, DAY_NAMES, COURSE_RENAMES,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
-PDF_PATH = str(ROOT / "source" / "全校課表.pdf")
-OUT_CSV = str(ROOT / "school_wide" / "全校課表_長表.csv")
-REPORT_MD = str(ROOT / "school_wide" / "全校_extraction_report.md")
-RYU_MD = str(ROOT / "school_wide" / "全校_領域時間.md")
 
 
 def extract_post(header_text):
@@ -216,7 +215,12 @@ def classify_course_detail(name):
     return None
 
 
-def main():
+def main(version, ryu_only=False):
+    out_csv = str(paths.csv_path(version))
+    report_md = str(paths.extraction_report_path(version))
+    ryu_md = str(paths.ryu_md_path(version))
+    ryu_json = str(paths.ryu_json_path(version))
+
     rows = []
     ryu_entries = []  # 領域時間 entries：另外保留作部門時段表
     page_status = []  # (page_idx, tcode, tname, entry_count, status)
@@ -225,7 +229,7 @@ def main():
     teacher_set = set()
     teacher_post = {}  # tcode -> 職務（從 header 抽取）
 
-    with pdfplumber.open(PDF_PATH) as pdf:
+    with pdfplumber.open(str(paths.PDF)) as pdf:
         n_pages = len(pdf.pages)
         for pi, page in enumerate(pdf.pages):
             tables = page.extract_tables()
@@ -350,16 +354,17 @@ def main():
         r["導師班級"] = homeroom[r["教師代碼"]]
         r["細科目"] = detail[r["教師代碼"]]
 
-    # 輸出 CSV
+    # 輸出 CSV（--ryu-only 時跳過，避免覆蓋手動修正過的 CSV）
     fieldnames = ["教師代碼", "教師", "星期", "節次", "課程名稱", "班級", "教室",
                   "主授科目", "細科目", "教師類別", "導師班級"]
-    with open(OUT_CSV, "w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
     n_homeroom = sum(1 for v in homeroom.values() if v)
-    print(f"[ok] {OUT_CSV}: {len(rows)} 筆 / {len(teacher_set)} 位老師 / {n_pages} 頁")
-    print(f"     IB 教師：{len(ib_codes)} 位 / 班級導師：{n_homeroom} 位")
+    if not ryu_only:
+        with open(out_csv, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+        print(f"[ok] {out_csv}: {len(rows)} 筆 / {len(teacher_set)} 位老師 / {n_pages} 頁")
+        print(f"     IB 教師：{len(ib_codes)} 位 / 班級導師：{n_homeroom} 位")
 
     # 報告
     md = []
@@ -448,9 +453,10 @@ def main():
     teacher_lines = [f"{code}={by_letter.get(code, '?')}" for code in teacher_codes]
     md.append("```\n" + "\n".join(teacher_lines) + "\n```\n")
 
-    with open(REPORT_MD, "w", encoding="utf-8") as f:
-        f.write("\n".join(md))
-    print(f"[ok] {REPORT_MD}")
+    if not ryu_only:
+        with open(report_md, "w", encoding="utf-8") as f:
+            f.write("\n".join(md))
+        print(f"[ok] {report_md}")
 
     # ── 領域時間 額外列表（依部門前綴分組） ──
     rmd = []
@@ -526,10 +532,23 @@ def main():
     if not has_inconsistency:
         rmd.append("（所有部門內所有老師領域時間一致）\n")
 
-    with open(RYU_MD, "w", encoding="utf-8") as f:
+    with open(ryu_md, "w", encoding="utf-8") as f:
         f.write("\n".join(rmd))
-    print(f"[ok] {RYU_MD}: 領域時間 {len(ryu_entries)} 筆")
+    print(f"[ok] {ryu_md}: 領域時間 {len(ryu_entries)} 筆")
+
+    # 結構化輸出，供 audit_categories 做「各科領域時間」join
+    with open(ryu_json, "w", encoding="utf-8") as f:
+        json.dump(ryu_entries, f, ensure_ascii=False, indent=1)
+    print(f"[ok] {ryu_json}")
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser(description="全校 PDF → CSV + 報告 + 領域時間")
+    ap.add_argument("--version", default=None, help="版本資料夾名（如 115-1）；預設為目前版本")
+    ap.add_argument("--ryu-only", action="store_true",
+                    help="只重產領域時間(md+json)，不寫 CSV/報告（不破壞手動修正過的 CSV）")
+    args = ap.parse_args()
+    version = args.version or paths.current_version()
+    if not version:
+        raise SystemExit("[err] 未指定版本，也沒有目前版本。請用 --version 指定。")
+    main(version, ryu_only=args.ryu_only)
