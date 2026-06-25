@@ -10,6 +10,7 @@
   [3] 只產單檔 HTML（自己手機 / email）                 → build_single
   [4] 產分類確認表，人工檢查                            → audit_categories
 """
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +21,22 @@ PDF = ROOT / "source" / "全校課表.pdf"
 INDEX = ROOT / "school_wide" / "index.html"
 MASTER = ROOT / "代課查詢_發布.html"
 VERSION_FILE = ROOT / "school_wide" / "_data_version.txt"
+
+
+def extract_ready():
+    """選項 1/4 需要 PDF 解析能力。缺東西時給友善提示，不噴 traceback。"""
+    missing = []
+    if not (ROOT / "scripts" / "extract_v2.py").exists():
+        missing.append("scripts/extract_v2.py（PDF 解析底層，目前不在；需從 git 還原）")
+    if importlib.util.find_spec("pdfplumber") is None:
+        missing.append("pdfplumber 套件（請先執行 pip install pdfplumber）")
+    if missing:
+        print("\n[無法執行] 這個選項需要先準備：")
+        for m in missing:
+            print("   - " + m)
+        print("（選項 2 / 3 不需要這些，可正常使用）")
+        return False
+    return True
 
 
 def prompt_version():
@@ -93,6 +110,8 @@ def main():
         choice = input("請輸入選項：").strip().lower()
 
         if choice == "1":
+            if not extract_ready():
+                continue
             if not PDF.exists():
                 print("[停止] 請先把新學期 PDF 命名為「全校課表.pdf」放進 source/ 再選 1。")
                 continue
@@ -103,8 +122,10 @@ def main():
         elif choice == "2":
             run("build_data.py", *prompt_version())
         elif choice == "3":
-            run("build_single.py")
+            run("build_single.py", *prompt_version())
         elif choice == "4":
+            if not extract_ready():
+                continue
             run("audit_categories.py")
         elif choice == "5":
             deploy_ui()
