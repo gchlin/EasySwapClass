@@ -33,6 +33,10 @@
     border-radius: 6px;
   }
   section h2 { margin: 0 0 0.5em; font-size: 1em; color: var(--primary); }
+  .sec-head { display: flex; align-items: center; gap: 0.4em; flex-wrap: wrap; margin: 0 0 0.5em; }
+  .sec-head h2 { margin: 0; }
+  .sec-head .help-btn { margin: 0; }
+  .sec-note { color: var(--muted); font-size: 0.8em; }
   select { font-size: 1em; padding: 0.4em; min-width: 14em; }
   input[type="search"] {
     font-size: 1em; padding: 0.4em; min-width: 11em;
@@ -118,7 +122,7 @@
     border-radius: 6px;
   }
   #panel.partner-mode {
-    background: #ffedd5;
+    background: #fff7ed;
     border-color: var(--partner);
   }
   #panel-status {
@@ -261,6 +265,30 @@
     border-radius: 3px; font-family: monospace;
   }
 
+  /* 語言分段切換鈕（中／EN） */
+  .lang-switch {
+    display: inline-flex; border: 1px solid var(--primary);
+    border-radius: 999px; overflow: hidden; vertical-align: middle; margin-left: .3em;
+  }
+  .lang-switch button {
+    all: unset; cursor: pointer; padding: .15em .6em; font-size: .8em;
+    color: var(--primary); background: #fff; line-height: 1.4;
+  }
+  .lang-switch button.active { background: var(--primary); color: #fff; }
+
+  /* 選了人選後降噪：聚焦下一步、其餘轉灰（第5點） */
+  #panel.partner-mode .panel-title span { color: #9ca3af !important; }
+  /* 說明引導整行轉灰（含（導師）紅字、★ 綠字） */
+  #panel.partner-mode .panel-guide,
+  #panel.partner-mode .panel-guide .guide-hr,
+  #panel.partner-mode .panel-guide .guide-star { color: #9ca3af !important; }
+  /* 群組/子群標題一律降噪 */
+  #panel.partner-mode .candidate-group h3,
+  #panel.partner-mode .candidate-subgroup h4 { color: #9ca3af !important; }
+  #panel.partner-mode .cand-btn:not(.active) {
+    color: #9ca3af !important; border-color: #e5e7eb !important; opacity: .65;
+  }
+
   @media (max-width: 600px) {
     body { font-size: 14px; padding: 0 0.4em 3em; }
     table.schedule th, table.schedule td {
@@ -296,33 +324,36 @@
 <body>
 
 
-<h1><span data-i18n="appTitle">尋找調代課小幫手</span> <button class="help-btn" data-i18n="helpBtn" data-target="help-title">ⓘ 說明</button> <button id="lang-toggle" class="help-btn" style="margin-left:.3em">EN</button><span id="data-version-tag" style="font-size:.5em;font-weight:400;color:#94a3b8;margin-left:.5em;white-space:nowrap"></span></h1>
+<h1><span data-i18n="appTitle">尋找調代課小幫手</span> <button class="help-btn" data-i18n="helpBtn" data-target="help-title">ⓘ 說明</button> <span id="lang-toggle" class="lang-switch"><button type="button" data-lang="zh">中</button><button type="button" data-lang="en">EN</button></span><span id="data-version-tag" style="font-size:.5em;font-weight:400;color:#94a3b8;margin-left:.5em;white-space:nowrap"></span></h1>
 <div id="help-title" class="help-body" hidden>
   <p data-i18n="flow">● 操作流程：1.選你自己 2.看課表選時段 3.選調課老師 4.完成分享訊息</p>
 </div>
 
 <section>
-  <h2 data-i18n="sec1Title">1. 我是誰</h2>
-  <button class="help-btn" data-i18n="helpBtn" data-target="help-1">ⓘ 說明</button>
+  <div class="sec-head">
+    <h2 data-i18n="sec1Title">1. 我是誰</h2>
+    <button class="help-btn" data-i18n="helpBtn" data-target="help-1">ⓘ 說明</button>
+  </div>
   <div id="help-1" class="help-body" hidden>
     <p data-i18n="help1a">● 瀏覽器會記得你，下次打開直接是你。</p>
     <p data-i18n-html="help1b">● 要書籤化「自己」這個身分：在網址後加 <code>#代號</code>（例如 <code>#N60</code>）。</p>
   </div>
   <div id="subject-filter" style="margin:0 0 0.5em; display:flex; gap:0.3em; flex-wrap:wrap"></div>
   <div style="display:flex; align-items:center; gap:0.75em; flex-wrap:wrap">
-    <select id="teacher"></select>
-    <span style="color:#9a3412; font-weight:bold" data-i18n-html="selGuide">↓在下方點選找要調代課的<span class="legend-chip lg-yellow">時段框框</span>↓</span>
-  </div>
-  <div style="margin-top:0.5em; font-size:0.9em">
-    <label style="cursor:pointer">
+    <label style="cursor:pointer; font-size:0.9em; white-space:nowrap">
       <input type="checkbox" id="ib-mode"> <span data-i18n="ibMode">IB 模式</span>
     </label>
+    <select id="teacher"></select>
+    <span style="color:#9a3412; font-weight:bold" data-i18n-html="selGuide">↓在下方點選找要調代課的<span class="legend-chip lg-yellow">時段框框</span>↓</span>
   </div>
 </section>
 
 <section id="my-schedule-section" style="display:none">
-  <h2 data-i18n="sec2Title">2. 我的課表</h2>
-  <button class="help-btn" data-i18n="helpBtn" data-target="help-2">ⓘ 說明</button>
+  <div class="sec-head">
+    <h2 data-i18n="sec2Title">2. 我的課表</h2>
+    <span class="sec-note" data-i18n="sec2Note">（一次處理一節，可以處理多節）</span>
+    <button class="help-btn" data-i18n="helpBtn" data-target="help-2">ⓘ 說明</button>
+  </div>
   <div id="help-2" class="help-body" hidden>
     <p data-i18n="help2a">● 點黃色格子＝請假該時段，再點一次取消。</p>
     <p data-i18n="help2b">● 確認後的格子再點一次也可以取消。</p>
@@ -348,8 +379,10 @@
 </section>
 
 <section id="partner-section" style="display:none">
-  <h2 data-i18n="sec3Title">3. 對方課表</h2>
-  <button class="help-btn" data-i18n="helpBtn" data-target="help-3">ⓘ 說明</button>
+  <div class="sec-head">
+    <h2 data-i18n="sec3Title">3. 對方課表</h2>
+    <button class="help-btn" data-i18n="helpBtn" data-target="help-3">ⓘ 說明</button>
+  </div>
   <div id="help-3" class="help-body" hidden>
     <p data-i18n="help3a">● 每位對方一段獨立的「訊息」「按鈕」「課表」。</p>
     <p data-i18n="help3b">● 訊息：可複製到 LINE / 分享給對方（手機可直接喚起分享面板）。</p>
@@ -424,6 +457,7 @@ const STRINGS = {
     selGuide: '↓在下方點選找要調代課的<span class="legend-chip lg-yellow">時段框框</span>↓',
     ibMode: "IB 模式",
     sec2Title: "2. 我的課表",
+    sec2Note: "（一次處理一節，可以處理多節）",
     help2a: "● 點黃色格子＝請假該時段，再點一次取消。",
     help2b: "● 確認後的格子再點一次也可以取消。",
     help2c: "● 紫色粗框＝連堂課，兩堂都點，才能找兩節都有空的老師。",
@@ -537,6 +571,7 @@ const STRINGS = {
     selGuide: '↓ Click a <span class="legend-chip lg-yellow">slot box</span> below to find a swap/sub ↓',
     ibMode: "IB mode",
     sec2Title: "2. My schedule",
+    sec2Note: "(handle one period at a time; you can do several)",
     help2a: "● Click a yellow cell = take leave for that slot; click again to cancel.",
     help2b: "● A confirmed cell can also be cancelled by clicking it again.",
     help2c: "● Purple thick border = consecutive periods; click both to find teachers free for both.",
@@ -650,7 +685,9 @@ function applyStaticI18n() {
     b.textContent = code === "" ? t("allSubjects") : t("subjLabel", code);
   });
   const lt = document.getElementById("lang-toggle");
-  if (lt) lt.textContent = t("langToggle");
+  if (lt) lt.querySelectorAll("button[data-lang]").forEach(b => {
+    b.classList.toggle("active", b.dataset.lang === LANG);
+  });
   refreshVersionTag();
 }
 
@@ -854,8 +891,12 @@ function init() {
 
   // 語言：先套用記住的語言（影響下拉「空」提示等靜態文字）
   applyStaticI18n();
-  document.getElementById("lang-toggle").addEventListener("click", () => {
-    LANG = LANG === "zh" ? "en" : "zh";
+  document.getElementById("lang-toggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-lang]");
+    if (!btn) return;
+    const next = btn.dataset.lang;
+    if (next === LANG) return;
+    LANG = next;
     localStorage.setItem("langPref", LANG);
     const cur = sel.value;
     populateTeacherDropdown();   // 重建下拉以套用中/英老師名
