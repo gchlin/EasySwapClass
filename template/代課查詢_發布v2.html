@@ -106,6 +106,14 @@
       inset 3px 0 0 #7c3aed,
       inset -3px 0 0 #7c3aed;
   }
+  /* 多元／自主／行政會報：藍框＝不能調課、只能代課（與連堂同明度的藍） */
+  td.sub-only {
+    box-shadow:
+      inset 0 3px 0 #3b7fed,
+      inset 0 -3px 0 #3b7fed,
+      inset 3px 0 0 #3b7fed,
+      inset -3px 0 0 #3b7fed;
+  }
   table.schedule tbody tr:nth-child(4) > th,
   table.schedule tbody tr:nth-child(4) > td {
     border-bottom: 3px solid #000;
@@ -225,6 +233,7 @@
   .lg-conf-swap { background: #fde68a; border-color: #b45309; color: #78350f; }
   .lg-conf-in { background: #d1fae5; border-color: var(--swap); color: #064e3b; }
   .lg-inquiry { background: white; border: 2px solid #7c3aed; color: #5b21b6; }
+  .lg-subonly { background: white; border: 2px solid #3b7fed; color: #1d4ed8; }
 
   /* ⓘ 說明 折疊式按鈕 */
   .help-btn {
@@ -497,6 +506,7 @@ const STRINGS = {
     lgConfSwap: "✓ 已選調課",
     lgConfIn: "✓ 我代他的時段",
     lgInquiry: "紫框表示連堂課（考慮盡量同一個老師）",
+    lgSubOnly: "藍框表示不能調課、只能代課",
 
     // 自己／對方課表
     selfNoNeed: (n) => `⨯ 不用上 ${n}代`,
@@ -522,9 +532,9 @@ const STRINGS = {
     selfFile: "自己課表",
 
     // 候選分組標籤（括弧內科目名稱維持中文）
-    grpBoth: (lo, hi) => `兩節都能代的老師（連堂第 ${lo}-${hi} 節）`,
-    grpBothIb: (lo, hi) => `兩節都能代的 IB 老師（連堂第 ${lo}-${hi} 節）`,
-    grpBothOther: (lo, hi) => `兩節都能代的其他老師（連堂第 ${lo}-${hi} 節）`,
+    grpBoth: (lo, hi) => `兩節都能代/調的老師（連堂第 ${lo}-${hi} 節）`,
+    grpBothIb: (lo, hi) => `兩節都能代/調的 IB 老師（連堂第 ${lo}-${hi} 節）`,
+    grpBothOther: (lo, hi) => `兩節都能代/調的其他老師（連堂第 ${lo}-${hi} 節）`,
     grpSameKlass: "第一優先 · 相同任課班級的老師",
     grpSameSub: (full) => `第二優先 · 同領域（${full}）的老師`,
     ibPrefix: "IB優先 · ",
@@ -541,13 +551,15 @@ const STRINGS = {
     ibCourseOnly: "IB 課程 · 只列 IB 老師",
     ibCourse: "IB 課程",
     panelGuide: '<span class="guide-hr">（導師）</span>＝該班導師　<span class="guide-star">★</span>＝同科目老師　右側小字顯示任教科目',
-    inquiryNote: (lo, hi) => `⚠️ 這是連堂第 ${lo}-${hi} 節。「兩節都能代的老師」可一人代兩節；要分兩位代，就分開處理。`,
+    inquiryNote: (lo, hi) => `⚠️ 這是連堂第 ${lo}-${hi} 節。「兩節都能代/調的老師」可一人代兩節；要分兩位代或想調課，就分開逐節處理。`,
+    subOnlyNote: "⚠️ 多元／自主／行政類課程不能調課，只能請人代課。",
     partnerBoth: (n) => `（${n} 老師 兩節都有空，可一次代完）`,
     partnerOne: (n) => `（${n} 老師 只有這節空，另一節要再找人）`,
     swapLabel: "要調課",
     swapInstr: "在上方↑選擇要調課的時段",
     subLabel: "要代課",
     subInstr: "在下方↓點「確認代課」",
+    swapAlsoHint: "也可改調課：點上方↑亮起的時段（一次一節）",
     partnerNoSwap: (n) => `（${n} 老師 沒有空堂可調，只能請他代課）`,
     confirmBoth: "確認代課（兩節）",
     confirmThis: "確認代課（這節）",
@@ -609,6 +621,7 @@ const STRINGS = {
     lgConfSwap: "✓ Swap chosen",
     lgConfIn: "✓ I cover their slot",
     lgInquiry: "Purple border = consecutive periods (prefer the same teacher)",
+    lgSubOnly: "Blue border = sub only, no swap",
 
     selfNoNeed: (n) => `⨯ Off — ${n} covers`,
     selfCover: (n) => `↻ Cover ${n}`,
@@ -630,9 +643,9 @@ const STRINGS = {
     fbShareCopyFail: "Share and copy both failed",
     selfFile: "my_schedule",
 
-    grpBoth: (lo, hi) => `Teachers free for both periods (consecutive P${lo}-${hi})`,
-    grpBothIb: (lo, hi) => `IB teachers free for both periods (consecutive P${lo}-${hi})`,
-    grpBothOther: (lo, hi) => `Other teachers free for both periods (consecutive P${lo}-${hi})`,
+    grpBoth: (lo, hi) => `Teachers free for both — sub or swap (consecutive P${lo}-${hi})`,
+    grpBothIb: (lo, hi) => `IB teachers free for both — sub or swap (consecutive P${lo}-${hi})`,
+    grpBothOther: (lo, hi) => `Other teachers free for both — sub or swap (consecutive P${lo}-${hi})`,
     grpSameKlass: "1st priority · Same-class teachers",
     grpSameSub: (full) => `2nd priority · Same subject (${full}) teachers`,
     ibPrefix: "IB priority · ",
@@ -648,13 +661,15 @@ const STRINGS = {
     ibCourseOnly: "IB course · IB teachers only",
     ibCourse: "IB course",
     panelGuide: '<span class="guide-hr">(Homeroom)</span> = class homeroom　<span class="guide-star">★</span> = same-subject teacher　small text on the right shows the subject taught',
-    inquiryNote: (lo, hi) => `⚠️ Consecutive periods P${lo}-${hi}. A "both-periods" teacher can cover both; to split between two people, handle them separately.`,
+    inquiryNote: (lo, hi) => `⚠️ Consecutive periods P${lo}-${hi}. A "both-periods" teacher can cover both; to split between two people or to swap, handle each period separately.`,
+    subOnlyNote: "⚠️ Elective/self-study/admin courses can't be swapped — only covered by a sub.",
     partnerBoth: (n) => `(${n} is free both periods and can cover both at once)`,
     partnerOne: (n) => `(${n} is free only this period; find someone else for the other)`,
     swapLabel: "To swap",
     swapInstr: "select a swap slot above ↑",
     subLabel: "To sub",
     subInstr: 'click "Confirm sub" below ↓',
+    swapAlsoHint: "Or swap instead: click a highlighted slot above ↑ (one period at a time)",
     partnerNoSwap: (n) => `(${n} has no free slot to swap; can only be asked to sub)`,
     confirmBoth: "Confirm sub (both periods)",
     confirmThis: "Confirm sub (this period)",
@@ -785,7 +800,12 @@ function buildHeader(position) {
 }
 
 function isInquiryCourse(name) {
-  return name === "物理地科探究" || name === "化學生物探究" || name === "IPSS";
+  return name === "物理地科探究" || name === "化學生物探究" || name === "IPSS"
+      || name === "生科" || name === "領域課程";
+}
+// 多元／自主／行政會報：不能調課、只能代課（以課名關鍵字判斷）
+function isSubOnlyCourse(name) {
+  return !!name && (name.includes("多元") || name.includes("自主") || name.includes("行政會報"));
 }
 function inquiryPositionFor(tcode, d, p) {
   const e = getEntry(tcode, d, p);
@@ -1003,10 +1023,10 @@ function isSwapOption(d, p) {
   if (isInLeave(d, p)) return false;
   if (findConfirmed(d, p)) return false;
   if (isOccupied(meCode(), d, p)) return false;
-  // 連堂 + partner 兩節都空堂（「兩節都能代的老師」群組）→ 不顯示調課，直接代兩節即可
+  // 多元／自主／行政會報 → 不能調課，只能代課
   if (state.leaveSlot) {
-    const paired = getPairedPeriod(meCode(), state.leaveSlot.day, state.leaveSlot.period);
-    if (paired && !isOccupied(state.partnerCode, state.leaveSlot.day, paired)) return false;
+    const le = getEntry(meCode(), state.leaveSlot.day, state.leaveSlot.period);
+    if (le && isSubOnlyCourse(le.course)) return false;
   }
   const partnerEntry = getEntry(state.partnerCode, d, p);
   if (!partnerEntry) return false;
@@ -1091,9 +1111,11 @@ function render() {
     html += `<tr><th>${p}</th>`;
     for (let d = 1; d <= 5; d++) {
       const s = computeCellState(d, p);
+      const myE = getEntry(meCode(), d, p);
+      const subCls = (myE && isSubOnlyCourse(myE.course)) ? " sub-only" : "";
       const pos = inquiryPosition(d, p);
-      const inqCls = pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "";
-      html += `<td class="${s.cls}${inqCls}" data-day="${d}" data-period="${p}">${s.html}</td>`;
+      const inqCls = subCls ? "" : (pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "");
+      html += `<td class="${s.cls}${inqCls}${subCls}" data-day="${d}" data-period="${p}">${s.html}</td>`;
     }
     html += '</tr>';
   }
@@ -1180,6 +1202,16 @@ function renderLegend() {
   }
   if (hasInquiry) items.push(`<span class="lg-inquiry">${t("lgInquiry")}</span>`);
 
+  // 藍框提示：使用者課表中有多元/自主/行政會報才顯示
+  let hasSubOnly = false;
+  outer3: for (let d = 1; d <= 5; d++) {
+    for (let p = 1; p <= 7; p++) {
+      const ee = getEntry(tcode, d, p);
+      if (ee && isSubOnlyCourse(ee.course)) { hasSubOnly = true; break outer3; }
+    }
+  }
+  if (hasSubOnly) items.push(`<span class="lg-subonly">${t("lgSubOnly")}</span>`);
+
   document.getElementById("legend").innerHTML = items.join("");
 }
 
@@ -1234,8 +1266,9 @@ function renderSelfSchedule() {
         content = e ? `${e.course}${e.klass ? " " + e.klass : ""}` : "·";
       }
       const pos = inquiryPositionFor(myCode, d, p);
-      const inqCls = pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "";
-      html += `<td class="${cls}${inqCls}" style="cursor:default">${content}</td>`;
+      const subCls = (e && isSubOnlyCourse(e.course)) ? " sub-only" : "";
+      const inqCls = subCls ? "" : (pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "");
+      html += `<td class="${cls}${inqCls}${subCls}" style="cursor:default">${content}</td>`;
     }
     html += '</tr>';
   }
@@ -1445,7 +1478,10 @@ function renderPartnerScheduleTable(pcode, confs, myCode, meName) {
         cls = "cell-partner-context";
         content = e ? `${e.course}${e.klass ? " " + e.klass : ""}` : "·";
       }
-      html += `<td class="${cls}" style="cursor:default">${content}</td>`;
+      // 藍框：依該格實際顯示的課程（代我課的格顯示我的課，其餘顯示對方的課）
+      const shownCourse = (m && m.role === "cover-me") ? (m.myClass && m.myClass.course) : (e && e.course);
+      const subCls = isSubOnlyCourse(shownCourse) ? " sub-only" : "";
+      html += `<td class="${cls}${subCls}" style="cursor:default">${content}</td>`;
     }
     html += '</tr>';
   }
@@ -1466,9 +1502,13 @@ function teachesKlass(tcode, klass) {
 // 找連堂的另一節（top → next, bottom → prev, 否則 null）
 function getPairedPeriod(tcode, day, period) {
   const pos = inquiryPositionFor(tcode, day, period);
-  if (pos === "top") return period + 1;
-  if (pos === "bottom") return period - 1;
-  return null;
+  let paired = null;
+  if (pos === "top") paired = period + 1;
+  else if (pos === "bottom") paired = period - 1;
+  if (paired === null) return null;
+  // 連堂另一節若已確認處理（代/調）→ 視為單節，避免重複指派
+  if (findConfirmed(day, paired)) return null;
+  return paired;
 }
 
 // 取得候選老師分組
@@ -1695,21 +1735,26 @@ function renderPanel() {
     const hi = Math.max(ls.period, paired);
     html += `<div class="panel-note">${t("inquiryNote", lo, hi)}</div>`;
   }
+  if (isSubOnlyCourse(e.course)) {
+    html += `<div class="panel-note" style="color:#1d4ed8">${t("subOnlyNote")}</div>`;
+  }
   if (state.mode === "partnerSelected") {
     const p = teacherInfo(state.partnerCode);
     const partnerCoversBoth = paired && !isOccupied(state.partnerCode, ls.day, paired);
+    // 真實算可調課時段數（套用同班 / sub-only 限制）
+    let swapCount = 0;
+    for (let dd = 1; dd <= 5; dd++) {
+      for (let pp = 1; pp <= 7; pp++) {
+        if (isSwapOption(dd, pp)) swapCount++;
+      }
+    }
     if (partnerCoversBoth) {
       html += `<br><strong style="color:var(--partner)">${t("partnerBoth", p.name)}</strong>`;
+      if (swapCount > 0) html += `<div style="margin-top:0.3em; font-size:0.86em; color:#9a3412;">${t("swapAlsoHint")}</div>`;
     } else if (paired) {
       html += `<br><strong style="color:var(--partner)">${t("partnerOne", p.name)}</strong>`;
+      if (swapCount > 0) html += `<div style="margin-top:0.3em; font-size:0.86em; color:#9a3412;">${t("swapAlsoHint")}</div>`;
     } else {
-      // 真實算可調課時段數（套用同班限制）
-      let swapCount = 0;
-      for (let dd = 1; dd <= 5; dd++) {
-        for (let pp = 1; pp <= 7; pp++) {
-          if (isSwapOption(dd, pp)) swapCount++;
-        }
-      }
       if (swapCount > 0) {
         html += `<div style="margin-top:0.55em; color:#9a3412; line-height:1.7;">`;
         html += `<div><b style="color:#7c2d12; font-weight:900; margin-right:0.35em;">${t("swapLabel")}</b>${t("swapInstr")}</div>`;
