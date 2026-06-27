@@ -566,6 +566,27 @@ const STRINGS = {
     confirmSub: "確認代課",
     cancel: "取消",
 
+    // ── 三角調 ──
+    triEnterBtn: "🔺 三角調：指定一位現在沒空的老師",
+    triEnterHint: "想找的人這節有課？用三角調：先幫他把這節的課交給別人，他就能來代你。",
+    triPickBTitle: "🔺 三角調 · 選擇要指定的老師",
+    triPickBGuide: "以下都是「這節沒空」的老師。選一位，系統會幫你把他這節的課先找人代/調開。",
+    triBanner: (b, period) => `🔺 三角調進行中：正在處理 <u>${b} 老師</u> 第 ${period} 節原本的課 — 幫他找人代課或調開，他才能來代你。`,
+    panelTitleTriC: (b) => `${b} 老師這節有空的老師`,
+    confirmTriSub: (c, b) => `確認：${c} 代 ${b}`,
+    lgTriBLeave: "🔺 B 老師待處理的課",
+    lgConfTri: "✓ 已成立三角調",
+    cellTriSubFor: (b) => `🔺 請 ${b} 代`,
+    // 三角調卡片：格子註記與標題
+    triAnnoCoverA: (a) => `↪ 代 ${a}`,
+    triAnnoCoverB: (b) => `↪ 代 ${b}`,
+    triAnnoCoverC: (c) => `↪ 代 ${c}`,
+    triAnnoRest: (b) => `⨯ 不用上（${b} 代）`,
+    triCardA: (a) => `${a} 老師（你）課表`,
+    triCardB: (b) => `${b} 老師課表`,
+    triCardC: (c) => `${c} 老師課表`,
+    triMsgHeader: "🔺 三角調 提醒：",
+
     verLabel: (v) => `資料版本 ${v}`,
     verNone: "資料版本（未標示）",
   },
@@ -676,6 +697,26 @@ const STRINGS = {
     confirmSub: "Confirm sub",
     cancel: "Cancel",
 
+    // ── Triangle swap ──
+    triEnterBtn: "🔺 Triangle swap: pick a teacher who's busy now",
+    triEnterHint: "The teacher you want has class this period? Use a triangle swap: first get someone to cover their class, then they can cover yours.",
+    triPickBTitle: "🔺 Triangle swap · Pick the teacher to designate",
+    triPickBGuide: "These teachers are all busy this period. Pick one; the tool will first find a sub/swap for their class this period.",
+    triBanner: (b, period) => `🔺 Triangle swap in progress: handling <u>${b}</u>'s P${period} class — find a sub/swap so they can cover yours.`,
+    panelTitleTriC: (b) => `Teachers free this period for ${b}`,
+    confirmTriSub: (c, b) => `Confirm: ${c} subs for ${b}`,
+    lgTriBLeave: "🔺 B's class to handle",
+    lgConfTri: "✓ Triangle swap set",
+    cellTriSubFor: (b) => `🔺 Sub: ${b}`,
+    triAnnoCoverA: (a) => `↪ Cover ${a}`,
+    triAnnoCoverB: (b) => `↪ Cover ${b}`,
+    triAnnoCoverC: (c) => `↪ Cover ${c}`,
+    triAnnoRest: (b) => `⨯ Off (${b} covers)`,
+    triCardA: (a) => `${a} (you) schedule`,
+    triCardB: (b) => `${b} schedule`,
+    triCardC: (c) => `${c} schedule`,
+    triMsgHeader: "🔺 Triangle swap reminder:",
+
     verLabel: (v) => `Data version ${v}`,
     verNone: "Data version (unmarked)",
   },
@@ -750,6 +791,9 @@ const state = {
   partnerCode: null,
   confirmed: [],
   groupOverrides: {},        // 群組摺疊狀態 (label → bool); 不在此 dict 用 priority 預設
+  // 三角調進行中： { aCode, bCode, slot:{day,period}, phase:"pickB"|"pickC" }
+  // bCode 一旦設定 → focusCode() 改回傳 B，上方互動課表＋候選面板全改以 B 為主角
+  triangle: null,
 };
 
 function teacherInfo(code) { return TEACHERS.find(t => t.code === code); }
@@ -762,6 +806,13 @@ function teacherDisplayName(tt) {
 }
 function meCode() { return document.getElementById("teacher").value; }
 function me() { return teacherInfo(meCode()); }
+// 焦點老師：上方互動課表＋候選面板「正在被處理的人」。
+// 一般情況 = 我 (A)；三角調進行中且已選 B → 改成 B（替 B 找 C）。
+function focusCode() {
+  return (state.triangle && state.triangle.bCode) ? state.triangle.bCode : meCode();
+}
+// 三角調進行中（已選 B、正在替 B 找 C）
+function inTriangleB() { return !!(state.triangle && state.triangle.bCode); }
 
 function getWeekDates(mode) {
   if (mode === "none" || !mode) return null;
@@ -817,7 +868,7 @@ function inquiryPositionFor(tcode, d, p) {
   return null;
 }
 function inquiryPosition(d, p) {
-  return inquiryPositionFor(meCode(), d, p);
+  return inquiryPositionFor(focusCode(), d, p);
 }
 
 // 判斷單一課程名稱是否為 IB 課程：課程名稱不含中文字 = IB 課程
@@ -1006,10 +1057,26 @@ function toggleGroup(label) {
 
 let currentGroups = [];  // 暫存當前 render 的 groups，給 toggleGroup 查用
 
+// 找占用 (d,p) 的已確認記錄。focus-aware：三角調進行中（主格子=B）時只認屬於 B 的標記，
+// 不讓 A 既有的代/調課（屬於 A 的格子）誤畫到 B 的課表上。
 function findConfirmed(d, p) {
+  const tri = inTriangleB();
   for (const c of state.confirmed) {
+    if (c.type === "triangle") continue;  // 三角調記錄由 findTriangleAt 處理
+    if (tri) continue;                    // B 焦點時忽略 A 的一般 confirmed
     if (c.day === d && c.period === p) return {role: "leave", c};
     if (c.type === "swap" && c.swapDay === d && c.swapPeriod === p) return {role: "swap-in", c};
+  }
+  return null;
+}
+
+// 三角調記錄相對「目前主格子焦點」的角色（只在非三角調進行中、主格子=A 時標 A 的格子）。
+// 回傳 { role:"a-leave", c } 表示 A 在 slot S 請 B 代。
+function findTriangleAt(d, p) {
+  if (inTriangleB()) return null;   // 正在編輯另一個三角調時，主格子=B，不疊既有三角調標記
+  for (const c of state.confirmed) {
+    if (c.type !== "triangle") continue;
+    if (c.slot.day === d && c.slot.period === p) return {role: "a-leave", c};
   }
   return null;
 }
@@ -1022,18 +1089,18 @@ function isSwapOption(d, p) {
   if (state.mode !== "partnerSelected") return false;
   if (isInLeave(d, p)) return false;
   if (findConfirmed(d, p)) return false;
-  if (isOccupied(meCode(), d, p)) return false;
+  if (isOccupied(focusCode(), d, p)) return false;
   // 多元／自主／行政會報 → 不能調課，只能代課
   if (state.leaveSlot) {
-    const le = getEntry(meCode(), state.leaveSlot.day, state.leaveSlot.period);
+    const le = getEntry(focusCode(), state.leaveSlot.day, state.leaveSlot.period);
     if (le && isSubOnlyCourse(le.course)) return false;
   }
   const partnerEntry = getEntry(state.partnerCode, d, p);
   if (!partnerEntry) return false;
-  // 同班 partner（不同科但教我這個班級）→ 只允許同班級的調課
-  const myInfo = teacherInfo(meCode());
+  // 同班 partner（不同科但教這個班級）→ 只允許同班級的調課
+  const myInfo = teacherInfo(focusCode());
   const partnerInfo = teacherInfo(state.partnerCode);
-  const myLeave = state.leaveSlot ? getEntry(meCode(), state.leaveSlot.day, state.leaveSlot.period) : null;
+  const myLeave = state.leaveSlot ? getEntry(focusCode(), state.leaveSlot.day, state.leaveSlot.period) : null;
   if (myLeave && myLeave.klass) {
     const isSameClassGroup = partnerInfo.subject !== myInfo.subject && teachesKlass(partnerInfo.code, myLeave.klass);
     if (isSameClassGroup && partnerEntry.klass !== myLeave.klass) return false;
@@ -1042,8 +1109,19 @@ function isSwapOption(d, p) {
 }
 
 function computeCellState(d, p) {
-  const tcode = meCode();
+  const tcode = focusCode();
   const e = getEntry(tcode, d, p);
+
+  // 已確認的三角調：在 A 主格子的 slot S 標「↩ 請 B 代」（B 焦點時 findTriangleAt 回 null）
+  const tri = findTriangleAt(d, p);
+  if (tri) {
+    const b = teacherInfo(tri.c.bCode);
+    return {
+      cls: "cell-confirmed-leave-sub",
+      html: `${e.course}${e.klass ? " " + e.klass : ""}<span class="anno">${t("cellTriSubFor", b.name)}</span>`,
+    };
+  }
+
   const conf = findConfirmed(d, p);
 
   if (conf) {
@@ -1111,7 +1189,7 @@ function render() {
     html += `<tr><th>${p}</th>`;
     for (let d = 1; d <= 5; d++) {
       const s = computeCellState(d, p);
-      const myE = getEntry(meCode(), d, p);
+      const myE = getEntry(focusCode(), d, p);
       const subCls = (myE && isSubOnlyCourse(myE.course)) ? " sub-only" : "";
       const pos = inquiryPosition(d, p);
       const inqCls = subCls ? "" : (pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "");
@@ -1128,6 +1206,7 @@ function render() {
   renderLegend();
   renderPanel();
   renderPartnerSchedules();
+  renderTriangles();
   renderSelfSchedule();
   document.getElementById("post-confirm-hint").hidden = state.confirmed.length === 0;
   // 點完請假時段後才出現「↓在下方列表找要調代課的時段」
@@ -1168,11 +1247,11 @@ function updateFindPartnerHintBlink() {
 
 // 動態圖例：只顯示畫面上「實際出現」的格子類型，避免一開始就堆一排不知道意義的色塊
 function renderLegend() {
-  const tcode = meCode();
+  const tcode = focusCode();
   const items = [`<span class="lg-yellow">${t("lgHaveClass")}</span>`];
 
   if (state.leaveSlot) {
-    items.push(`<span class="lg-leave">${t("lgMyLeave")}</span>`);
+    items.push(`<span class="lg-leave">${inTriangleB() ? t("lgTriBLeave") : t("lgMyLeave")}</span>`);
   }
 
   if (state.mode === "partnerSelected") {
@@ -1187,11 +1266,13 @@ function renderLegend() {
 
   const hasSubConfirmed = state.confirmed.some(c => c.type === "sub");
   const hasSwapConfirmed = state.confirmed.some(c => c.type === "swap");
+  const hasTriConfirmed = !inTriangleB() && state.confirmed.some(c => c.type === "triangle");
   if (hasSubConfirmed) items.push(`<span class="lg-conf-sub">${t("lgConfSub")}</span>`);
   if (hasSwapConfirmed) {
     items.push(`<span class="lg-conf-swap">${t("lgConfSwap")}</span>`);
     items.push(`<span class="lg-conf-in">${t("lgConfIn")}</span>`);
   }
+  if (hasTriConfirmed) items.push(`<span class="lg-conf-sub">${t("lgConfTri")}</span>`);
 
   // 紫框連堂提示：使用者課表中有探究/IPSS 連堂才顯示
   let hasInquiry = false;
@@ -1225,7 +1306,9 @@ function escapeHtml(s) {
 function renderSelfSchedule() {
   const sec = document.getElementById("self-section");
   const div = document.getElementById("self-schedule");
-  if (state.confirmed.length === 0) {
+  // 三角調以自己的卡片呈現 A/B/C 三表，不進這張 A 個人快照
+  const selfConfs = state.confirmed.filter(c => c.type !== "triangle");
+  if (selfConfs.length === 0) {
     sec.style.display = "none";
     div.innerHTML = "";
     return;
@@ -1235,7 +1318,7 @@ function renderSelfSchedule() {
   const myCode = meCode();
   // 標記有變動的格子：請假時段、以及我代課（調課）的時段；其餘維持灰色
   const marks = {};
-  for (const c of state.confirmed) {
+  for (const c of selfConfs) {
     marks[`${c.day}-${c.period}`] = { role: "my-leave", c };
     if (c.type === "swap") {
       marks[`${c.swapDay}-${c.swapPeriod}`] = { role: "my-cover", c };
@@ -1290,6 +1373,7 @@ function renderPartnerSchedules() {
   const meName = me().name;
   const byPartner = {};
   for (const c of state.confirmed) {
+    if (c.type === "triangle") continue;   // 三角調由 renderTriangles 追加
     (byPartner[c.partnerCode] ||= []).push(c);
   }
 
@@ -1489,6 +1573,147 @@ function renderPartnerScheduleTable(pcode, confs, myCode, meName) {
   return html;
 }
 
+// ─── 三角調卡片（A / B / C 三張快照表 + 訊息）──────────────────────
+function fmtCK(e) { return e ? `${e.course}${e.klass ? " " + e.klass : ""}` : "·"; }
+
+// 用 marks 畫某老師的快照表。marks[`d-p`] = {cls, content, shownCourse}；無標記則灰底顯示本人課
+function renderMarkedTable(tcode, marks) {
+  let html = '<table class="schedule">' + buildHeader("before") + '<tbody>';
+  for (let p = 1; p <= 7; p++) {
+    html += `<tr><th>${p}</th>`;
+    for (let d = 1; d <= 5; d++) {
+      const m = marks[`${d}-${p}`];
+      const e = getEntry(tcode, d, p);
+      let cls, content, shownCourse;
+      if (m) { cls = m.cls; content = m.content; shownCourse = m.shownCourse; }
+      else { cls = "cell-partner-context"; content = fmtCK(e); shownCourse = e && e.course; }
+      const subCls = isSubOnlyCourse(shownCourse) ? " sub-only" : "";
+      html += `<td class="${cls}${subCls}" style="cursor:default">${content}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+// 由一筆 triangle 記錄推導出 A / B / C 三張表各自的標記格
+function triangleMarks(tri) {
+  const S = tri.slot;
+  const aE = getEntry(tri.aCode, S.day, S.period);   // A 在 S 的課
+  const bE = getEntry(tri.bCode, S.day, S.period);   // B 在 S 原本的課
+  const aName = teacherInfo(tri.aCode).name;
+  const bName = teacherInfo(tri.bCode).name;
+  const cName = teacherInfo(tri.cCode).name;
+  const anno = (txt) => `<span class="anno">${txt}</span>`;
+  const sk = `${S.day}-${S.period}`;
+  const a = {}, b = {}, c = {};
+  // A 表：S → A 的課，請 B 代
+  a[sk] = { cls: "cell-confirmed-leave-sub", content: `${fmtCK(aE)}${anno(t("cellTriSubFor", bName))}`, shownCourse: aE && aE.course };
+  // B 表：S → 代 A（B 自己的課交給 C）
+  b[sk] = { cls: "cell-confirmed-swap-in", content: `${fmtCK(aE)}${anno(t("triAnnoCoverA", aName))}`, shownCourse: aE && aE.course };
+  // C 表：S → 代 B
+  c[sk] = { cls: "cell-confirmed-swap-in", content: `${fmtCK(bE)}${anno(t("triAnnoCoverB", bName))}`, shownCourse: bE && bE.course };
+  if (tri.legType === "swap") {
+    const swE = getEntry(tri.cCode, tri.swapDay, tri.swapPeriod);  // C 在 swapSlot 原本的課
+    const swk = `${tri.swapDay}-${tri.swapPeriod}`;
+    b[swk] = { cls: "cell-confirmed-swap-in", content: `${fmtCK(swE)}${anno(t("triAnnoCoverC", cName))}`, shownCourse: swE && swE.course };
+    c[swk] = { cls: "cell-confirmed-leave-swap", content: `${fmtCK(swE)}${anno(t("triAnnoRest", bName))}`, shownCourse: swE && swE.course };
+  }
+  return { a, b, c };
+}
+
+function generateTriangleSummary(tri) {
+  const S = tri.slot;
+  const dates = getWeekDates(pickWeekMode());
+  const withEn = LANG === "en";
+  const aInfo = teacherInfo(tri.aCode), bInfo = teacherInfo(tri.bCode), cInfo = teacherInfo(tri.cCode);
+  const aName = aInfo.name, bName = bInfo.name, cName = cInfo.name;
+  const aEnN = teacherDisplayName(aInfo), bEnN = teacherDisplayName(bInfo), cEnN = teacherDisplayName(cInfo);
+  const aE = getEntry(tri.aCode, S.day, S.period);
+  const bE = getEntry(tri.bCode, S.day, S.period);
+  const dstr = (d) => `${dates[d-1].getMonth()+1}/${dates[d-1].getDate()}`;
+  const kz = (e) => e.klass ? ` ${e.klass}班` : "";
+  const ke = (e) => e.klass ? ` ${e.klass}` : "";
+  const zh = [], en = [];
+  zh.push(`・${dstr(S.day)}(${DAY_NAMES[S.day]}) 第${S.period}節 ${aE.course}${kz(aE)} →${bName}老師 代課（${aName}老師請假）`);
+  zh.push(`・${dstr(S.day)}(${DAY_NAMES[S.day]}) 第${S.period}節 ${bE.course}${kz(bE)} →${cName}老師 代課（${bName}老師去代 ${aName}老師）`);
+  if (withEn) {
+    en.push(`・${dstr(S.day)}(${DAY_NAMES_EN[S.day]}) P${S.period} ${aE.course}${ke(aE)} → sub by ${bEnN} (${aEnN} on leave)`);
+    en.push(`・${dstr(S.day)}(${DAY_NAMES_EN[S.day]}) P${S.period} ${bE.course}${ke(bE)} → sub by ${cEnN} (${bEnN} covers ${aEnN})`);
+  }
+  if (tri.legType === "swap") {
+    const swE = getEntry(tri.cCode, tri.swapDay, tri.swapPeriod);
+    zh.push(`・${dstr(tri.swapDay)}(${DAY_NAMES[tri.swapDay]}) 第${tri.swapPeriod}節 ${swE.course}${kz(swE)} →${bName}老師 代課（${cName}老師休息，與第${S.period}節對調）`);
+    if (withEn) en.push(`・${dstr(tri.swapDay)}(${DAY_NAMES_EN[tri.swapDay]}) P${tri.swapPeriod} ${swE.course}${ke(swE)} → ${bEnN} teaches (${cEnN} rests; swapped with P${S.period})`);
+  }
+  const zhBlock = `🔺 三角調 提醒：\n${zh.join("\n")}`;
+  if (!withEn) return zhBlock;
+  const enBlock = `🔺 Triangle swap reminder:\n${en.join("\n")}`;
+  return `${zhBlock}\n\n${enBlock}`;
+}
+
+function renderTriangles() {
+  const div = document.getElementById("partner-schedules");
+  if (!div) return;
+  const tris = state.confirmed.filter(c => c.type === "triangle");
+  if (tris.length === 0) return;   // 區塊顯示由 renderPartnerSchedules 控制；此處只負責追加卡片
+  document.getElementById("partner-section").style.display = "block";
+
+  let html = "";
+  tris.forEach((tri, idx) => {
+    const id = `tri-${idx}`;
+    const aName = teacherInfo(tri.aCode).name, bName = teacherInfo(tri.bCode).name, cName = teacherInfo(tri.cCode).name;
+    const marks = triangleMarks(tri);
+    const text = generateTriangleSummary(tri);
+    html += `<div data-tricard="${id}" style="margin:1em 0; padding:0.8em; border:2px solid var(--partner); border-radius:6px; background:#fffdf9;">`;
+    html += `<div style="font-weight:800; color:var(--partner); margin-bottom:0.3em;">🔺 ${aName} ← ${bName} ← ${cName}</div>`;
+    html += `<pre style="background:#f9fafb; border:1px solid var(--border); padding:0.6em 0.8em; border-radius:4px; margin:0.4em 0; white-space:pre-wrap; word-break:break-word; font-size:0.9em; line-height:1.6; font-family:inherit;">${escapeHtml(text)}</pre>`;
+    html += `<div style="margin:0.4em 0">`;
+    html += `<button class="primary tri-copy" data-id="${id}" style="padding:0.5em 1em">${t("btnCopy")}</button>`;
+    html += `<button class="tri-share" data-id="${id}" style="padding:0.5em 1em">${t("btnShare")}</button>`;
+    html += `<button class="tri-shot" data-id="${id}" style="padding:0.5em 1em">${t("btnScreenshot")}</button>`;
+    html += `<span class="act-fb" data-pcode="${id}" style="margin-left:0.6em; font-size:0.9em; display:none"></span>`;
+    html += `</div>`;
+    html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardA", aName)}</div>${renderMarkedTable(tri.aCode, marks.a)}</div>`;
+    html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardB", bName)}</div>${renderMarkedTable(tri.bCode, marks.b)}</div>`;
+    html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardC", cName)}</div>${renderMarkedTable(tri.cCode, marks.c)}</div>`;
+    html += `</div>`;
+  });
+  div.insertAdjacentHTML("beforeend", html);
+
+  div.querySelectorAll(".tri-copy").forEach(b => b.addEventListener("click", () => doCopyTriangle(b.dataset.id)));
+  div.querySelectorAll(".tri-share").forEach(b => b.addEventListener("click", () => doShareTriangle(b.dataset.id)));
+  div.querySelectorAll(".tri-shot").forEach(b => b.addEventListener("click", () => doShotTriangle(b.dataset.id)));
+}
+
+function triById(id) {
+  const idx = parseInt(id.split("-")[1], 10);
+  return state.confirmed.filter(c => c.type === "triangle")[idx];
+}
+async function doCopyTriangle(id) {
+  const tri = triById(id); if (!tri) return;
+  const ok = await copyToClipboard(generateTriangleSummary(tri));
+  showFb(id, ok ? t("fbCopied") : t("fbCopyFail"), ok);
+}
+async function doShareTriangle(id) {
+  const tri = triById(id); if (!tri) return;
+  const text = generateTriangleSummary(tri);
+  if (navigator.share) {
+    try { await navigator.share({ text }); showFb(id, t("fbSharePanel"), true); }
+    catch (e) { if (e.name !== "AbortError") showFb(id, t("fbShareFail"), false); }
+  } else {
+    const ok = await copyToClipboard(text);
+    showFb(id, ok ? t("fbNoShareCopied") : t("fbShareCopyFail"), ok);
+  }
+}
+function doShotTriangle(id) {
+  const card = document.querySelector(`[data-tricard="${id}"]`);
+  if (!card) return;
+  const tri = triById(id);
+  const fname = `三角調_${teacherInfo(tri.aCode).name}_${teacherInfo(tri.bCode).name}_${teacherInfo(tri.cCode).name}_${dateStamp()}.png`;
+  captureTable(card, fname, (msg, ok) => showFb(id, msg, ok));
+}
+
 // 預先索引：班級 → 教過的老師 set
 const KLASS_TO_TEACHERS = {};
 for (const d of DATA) {
@@ -1517,7 +1742,7 @@ function getPairedPeriod(tcode, day, period) {
 //   IB 課程：5 階    IB同科 → IB同班 → IB其他科 → 同科 → 其他科
 //   群組互斥（高優先群已收的不會再進低優先群）
 function getCandidateGroups(leaveSlot) {
-  const tcode = meCode();
+  const tcode = focusCode();
   const myInfo = teacherInfo(tcode);
   const mySub = myInfo.subject;
   const e = getEntry(tcode, leaveSlot.day, leaveSlot.period);
@@ -1525,7 +1750,9 @@ function getCandidateGroups(leaveSlot) {
   const myKlass = e.klass;
   const pairedPeriod = getPairedPeriod(tcode, leaveSlot.day, leaveSlot.period);
 
-  let free = TEACHERS.filter(t => t.code !== tcode && !isOccupied(t.code, leaveSlot.day, leaveSlot.period));
+  // 三角調替 B 找 C 時，候選需排除 A（A 正要請假，不可能代 B）。tcode 本身（=B）已排除。
+  const excludeA = inTriangleB() ? state.triangle.aCode : null;
+  let free = TEACHERS.filter(t => t.code !== tcode && t.code !== excludeA && !isOccupied(t.code, leaveSlot.day, leaveSlot.period));
   const groups = [];
 
   // 連堂候選（兩節都空堂）先計算，後面依 IB / 非 IB 分開推入
@@ -1545,12 +1772,12 @@ function getCandidateGroups(leaveSlot) {
 
   // 同班候選需要：teaches my class AND 至少有一個同班級時段我空堂（才有調課可能）
   // 沒有同班級調課可能性的老師會落到「其他科」群組（直接代課仍可）
-  const canSwapMyKlass = (tcode) => {
+  const canSwapMyKlass = (candCode) => {
     if (!myKlass) return false;
     return DATA.some(d =>
-      d.tcode === tcode &&
+      d.tcode === candCode &&
       d.klass === myKlass &&
-      !isOccupied(meCode(), d.day, d.period)
+      !isOccupied(focusCode(), d.day, d.period)
     );
   };
 
@@ -1689,7 +1916,7 @@ function renderGroups(groups, leaveKlass, leaveDetail) {
         let emptyMsg = t("emptyBusy");
         if (g.kind === "sameKlass") emptyMsg = t("emptyBusyKlass");
         else if (g.kind === "sameSub") {
-          const meInfo = teacherInfo(meCode());
+          const meInfo = teacherInfo(focusCode());
           emptyMsg = t("emptyBusySub", fullSub(meInfo.subject));
         }
         html += `<span style="color:var(--muted); font-size:0.9em">${emptyMsg}</span>`;
@@ -1713,16 +1940,28 @@ function renderPanel() {
   panel.style.display = "block";
   panel.className = state.mode === "partnerSelected" ? "partner-mode" : "";
 
-  const tcode = meCode();
+  // ── 三角調「選 B」階段：列出該節沒空的老師（主格子仍是 A）──
+  if (state.triangle && state.triangle.phase === "pickB") {
+    renderTrianglePickB(panel);
+    return;
+  }
+
+  const tcode = focusCode();
   const ls = state.leaveSlot;
   const e = getEntry(tcode, ls.day, ls.period);
   const ibLeave = isIbCourse(e.course);
   const paired = getPairedPeriod(tcode, ls.day, ls.period);
   const groups = getCandidateGroups(ls);
+  const triB = inTriangleB();
 
   let html = '';
   html += `<div id="panel-status">`;
-  html += `<div class="panel-title"><span style="font-size:1.3em; font-weight:900; line-height:1.15; color:#1c1917;">${t("panelTitle")}</span>`;
+  if (triB) {
+    const bInfo = teacherInfo(state.triangle.bCode);
+    html += `<div class="tri-banner" style="background:#fef3c7; border:2px solid #d97706; border-radius:6px; padding:0.5em 0.7em; margin-bottom:0.5em; color:#92400e; font-weight:700; line-height:1.5;">${t("triBanner", bInfo.name, ls.period)}</div>`;
+  }
+  const panelTitleText = triB ? t("panelTitleTriC", teacherInfo(state.triangle.bCode).name) : t("panelTitle");
+  html += `<div class="panel-title"><span style="font-size:1.3em; font-weight:900; line-height:1.15; color:#1c1917;">${panelTitleText}</span>`;
   if (ibLeave) {
     const ibOnly = document.getElementById("ib-mode").checked;
     const ibLabel = ibOnly ? t("ibCourseOnly") : t("ibCourse");
@@ -1767,13 +2006,23 @@ function renderPanel() {
   }
   html += `</div>`;
 
+  // 三角調入口：A 已選好請假時段、尚未進入三角調時顯示
+  if (state.mode === "leaveSelected" && !state.triangle) {
+    html += `<div style="margin:0.6em 0; padding:0.5em 0.7em; background:#fff7ed; border:1px dashed var(--partner); border-radius:6px;">`;
+    html += `<button id="tri-enter-btn" style="border-color:var(--partner); color:var(--partner); font-weight:700;">${t("triEnterBtn")}</button>`;
+    html += `<div class="sec-note" style="margin-top:0.3em">${t("triEnterHint")}</div>`;
+    html += `</div>`;
+  }
+
   if (state.mode === "leaveSelected" || state.mode === "partnerSelected") {
     html += renderGroups(groups, e.klass, e.courseDetail);
   }
 
   if (state.mode === "partnerSelected") {
     const partnerCoversBoth = paired && !isOccupied(state.partnerCode, ls.day, paired);
-    const btnText = partnerCoversBoth ? t("confirmBoth") : (paired ? t("confirmThis") : t("confirmSub"));
+    const btnText = triB
+      ? t("confirmTriSub", teacherInfo(state.partnerCode).name, teacherInfo(state.triangle.bCode).name)
+      : (partnerCoversBoth ? t("confirmBoth") : (paired ? t("confirmThis") : t("confirmSub")));
     html += `<div style="margin-top:0.5em">`;
     html += `<button class="primary" id="confirm-sub-btn">${btnText}</button>`;
     html += `<button id="cancel-btn">${t("cancel")}</button>`;
@@ -1792,10 +2041,13 @@ function renderPanel() {
   panel.querySelectorAll(".cand-btn").forEach(b => {
     b.addEventListener("click", () => onCandidateClick(b.dataset.pcode));
   });
+  const triEnter = document.getElementById("tri-enter-btn");
+  if (triEnter) triEnter.addEventListener("click", enterTriangle);
   const subBtn = document.getElementById("confirm-sub-btn");
   if (subBtn) subBtn.addEventListener("click", confirmSub);
   const cancel = document.getElementById("cancel-btn");
   if (cancel) cancel.addEventListener("click", () => {
+    if (state.triangle) { exitTriangle(); return; }   // 三角調 pickC 取消 → 退出三角調回 A
     state.mode = "idle";
     state.leaveSlot = null;
     state.partnerCode = null;
@@ -1803,7 +2055,62 @@ function renderPanel() {
   });
 }
 
+// 三角調「選 B」面板：列出該節沒空的老師（busy），依科目分組
+function renderTrianglePickB(panel) {
+  panel.className = "";
+  const ls = state.leaveSlot;
+  const aE = getEntry(meCode(), ls.day, ls.period);
+  const busy = TEACHERS.filter(tt => tt.code !== meCode() && isOccupied(tt.code, ls.day, ls.period));
+
+  let html = '<div id="panel-status">';
+  html += `<div class="panel-title"><span style="font-size:1.25em; font-weight:900; line-height:1.15; color:#1c1917;">${t("triPickBTitle")}</span></div>`;
+  html += `<div class="panel-guide" style="font-size:0.82em; color:#78716c; line-height:1.6;">${t("triPickBGuide")}</div>`;
+  html += `</div>`;
+
+  const grouped = {};
+  for (const tt of busy) (grouped[tt.subject] ||= []).push(tt);
+  html += `<div class="candidate-group"><div class="group-body">`;
+  let any = false;
+  for (const sub of SUBJECT_ORDER) {
+    const list = grouped[sub];
+    if (!list || list.length === 0) continue;
+    any = true;
+    const sorted = sortCandidates(list, aE.klass, aE.courseDetail);
+    html += `<div class="candidate-subgroup"><h4>${sub}</h4>`;
+    for (const tt of sorted) {
+      const paren = LANG === "en" ? t("subjLabel", tt.subject) : (tt.detail ? fullDet(tt.detail) : fullSub(tt.subject));
+      html += `<button class="cand-btn pri-1" data-bcode="${tt.code}"><strong style="font-weight:700">${teacherDisplayName(tt)}</strong><span style="font-size:0.75em; opacity:0.68; margin-left:0.25em">${paren}</span></button>`;
+    }
+    html += `</div>`;
+  }
+  if (!any) html += `<span style="color:var(--muted); font-size:0.9em">${t("emptyNone")}</span>`;
+  html += `</div></div>`;
+  html += `<div style="margin-top:0.5em"><button id="tri-cancel-btn">${t("cancel")}</button></div>`;
+
+  panel.innerHTML = html;
+  panel.querySelectorAll("[data-bcode]").forEach(b => {
+    b.addEventListener("click", () => onPickB(b.dataset.bcode));
+  });
+  const c = document.getElementById("tri-cancel-btn");
+  if (c) c.addEventListener("click", exitTriangle);
+}
+
 function onCellClick(d, p) {
+  // 三角調「選 B」階段：主格子鎖定（請從面板的老師選單選 B，不從格子操作）
+  if (state.triangle && !state.triangle.bCode) return;
+
+  // 點掉已確認的三角調（只在主格子=A 時可點）→ 復原回 A 選好的 leaveSlot
+  const triAt = findTriangleAt(d, p);
+  if (triAt) {
+    state.confirmed = state.confirmed.filter(c => c !== triAt.c);
+    state.triangle = null;
+    state.mode = "leaveSelected";
+    state.leaveSlot = {day: triAt.c.slot.day, period: triAt.c.slot.period};
+    state.partnerCode = null;
+    render();
+    return;
+  }
+
   const conf = findConfirmed(d, p);
   if (conf) {
     state.confirmed = state.confirmed.filter(c => c !== conf.c);
@@ -1814,8 +2121,27 @@ function onCellClick(d, p) {
     return;
   }
 
+  // ── 三角調進行中（主格子=B，替 B 找 C）── leaveSlot 鎖定在 S
+  if (inTriangleB()) {
+    if (isInLeave(d, p)) {
+      // 點 B 在 S 的待處理格：已選 C → 先取消 C；否則退出三角調回 A
+      if (state.mode === "partnerSelected") {
+        state.mode = "leaveSelected";
+        state.partnerCode = null;
+        render();
+      } else {
+        exitTriangle();
+      }
+      return;
+    }
+    if (state.mode === "partnerSelected" && isSwapOption(d, p)) {
+      pushTriangle("swap", d, p);
+    }
+    return;  // 其餘格子鎖定，不可改 leaveSlot
+  }
+
   if (state.mode === "idle") {
-    if (!isOccupied(meCode(), d, p)) return;
+    if (!isOccupied(focusCode(), d, p)) return;
     state.mode = "leaveSelected";
     state.leaveSlot = {day: d, period: p};
     render();
@@ -1829,7 +2155,7 @@ function onCellClick(d, p) {
       render();
       return;
     }
-    if (isOccupied(meCode(), d, p)) {
+    if (isOccupied(focusCode(), d, p)) {
       state.leaveSlot = {day: d, period: p};
       render();
     }
@@ -1872,8 +2198,66 @@ function onCandidateClick(pcode) {
   render();
 }
 
+// ─── 三角調流程控制 ──────────────────────
+// A 已選 leaveSlot S → 進入三角調「選 B」階段（主格子仍是 A）
+function enterTriangle() {
+  if (!state.leaveSlot) return;
+  state.triangle = {
+    aCode: meCode(),
+    bCode: null,
+    slot: {day: state.leaveSlot.day, period: state.leaveSlot.period},
+    phase: "pickB",
+  };
+  state.mode = "leaveSelected";
+  state.partnerCode = null;
+  render();
+}
+
+// 選定 B → 主格子切成 B，leaveSlot 仍是 S（即 B 在 S 自己的課），開始替 B 找 C
+function onPickB(bcode) {
+  if (!state.triangle) return;
+  state.triangle.bCode = bcode;
+  state.triangle.phase = "pickC";
+  state.mode = "leaveSelected";
+  state.partnerCode = null;
+  render();
+}
+
+// 取消三角調 → 主格子切回 A，回到 A 選好 S 的狀態
+function exitTriangle() {
+  state.triangle = null;
+  state.partnerCode = null;
+  state.mode = state.leaveSlot ? "leaveSelected" : "idle";
+  render();
+}
+
+// 建立一筆三角調記錄（legType "sub"=C 代 B；"swap"=B 的課調到 swapSlot、B 去代 C）
+function pushTriangle(legType, swapDay, swapPeriod) {
+  const tri = state.triangle;
+  state.confirmed.push({
+    type: "triangle",
+    slot: {day: tri.slot.day, period: tri.slot.period},
+    aCode: tri.aCode,
+    bCode: tri.bCode,
+    cCode: state.partnerCode,
+    legType,
+    swapDay: legType === "swap" ? swapDay : null,
+    swapPeriod: legType === "swap" ? swapPeriod : null,
+  });
+  state.triangle = null;
+  state.mode = "idle";
+  state.leaveSlot = null;
+  state.partnerCode = null;
+  render();
+}
+
 function confirmSub() {
   if (state.mode !== "partnerSelected") return;
+  // 三角調：確認「C 代 B」
+  if (inTriangleB()) {
+    pushTriangle("sub");
+    return;
+  }
   const ls = state.leaveSlot;
   const partner = state.partnerCode;
   // 連堂偵測：若這節是連堂、且 partner 在另一節也空堂 → 兩節一起代
