@@ -2105,6 +2105,17 @@ function teachesKlass(tcode, klass) {
   return klass && KLASS_TO_TEACHERS[klass] && KLASS_TO_TEACHERS[klass].has(tcode);
 }
 
+// 協同/雙師：同一節、同一班級的其他老師（探究／IPSS 等雙師協同授課）。
+// 同班級同節次＝同一堂課，這些老師是和你一起上同一堂，不能當三角調的 B。
+function coTeacherCodesAt(klass, day, period, excludeCode) {
+  const set = new Set();
+  if (!klass) return set;
+  for (const d of DATA) {
+    if (d.day === day && d.period === period && d.klass === klass && d.tcode !== excludeCode) set.add(d.tcode);
+  }
+  return set;
+}
+
 // 找連堂的另一節（top → next, bottom → prev, 否則 null）
 function getPairedPeriod(tcode, day, period) {
   const pos = inquiryPositionFor(tcode, day, period);
@@ -2449,7 +2460,9 @@ function renderTrianglePickB(panel) {
   panel.className = "";
   const ls = state.leaveSlot;
   const aE = getEntry(meCode(), ls.day, ls.period);
-  const busy = TEACHERS.filter(tt => tt.code !== meCode() && isOccupied(tt.code, ls.day, ls.period));
+  // 排除「協同上課」的老師：探究／IPSS 等雙師同上一班，那位不是可指定的 B
+  const coTeachers = coTeacherCodesAt(aE.klass, ls.day, ls.period, meCode());
+  const busy = TEACHERS.filter(tt => tt.code !== meCode() && isOccupied(tt.code, ls.day, ls.period) && !coTeachers.has(tt.code));
 
   let html = '<div id="panel-status">';
   html += `<div class="panel-title"><span style="font-size:1.25em; font-weight:900; line-height:1.15; color:#1c1917;">${t("triPickBTitle")}</span></div>`;
