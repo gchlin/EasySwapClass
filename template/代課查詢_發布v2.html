@@ -85,6 +85,12 @@
   }
   td.cell-split .split-top { border-bottom: 2px solid #b45309; }
   #b-table-wrap { animation: bSlideIn 0.18s ease-out; }
+  /* 教務處整理：黑框，方便列印／截圖給教務處 */
+  #office-tables table.schedule { border: 2px solid #000; }
+  #office-tables table.schedule th,
+  #office-tables table.schedule td { border-color: #000; }
+  #office-tables .office-block { margin: 0 0 1.2em; }
+  #office-tables .office-cap { font-weight: 800; color: #1c1917; margin: 0.2em 0 0.3em; }
   @keyframes bSlideIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
   td.cell-occupied { background: #fef9c3; cursor: pointer; }
   td.cell-occupied:hover { background: #fde68a; }
@@ -440,6 +446,18 @@
   </div>
 </section>
 
+<section id="office-section" style="display:none">
+  <div class="sec-head">
+    <h2 data-i18n="officeTitle">5. 教務處參考</h2>
+    <span class="sec-note" data-i18n="officeNote">（三角調異動總表，黑框、可一起截圖給教務處）</span>
+  </div>
+  <div id="office-tables"></div>
+  <div style="margin:0.4em 0">
+    <button class="primary" id="office-screenshot" style="padding:0.5em 1em" data-i18n="officeScreenshot">📸 截圖（教務處整理）</button>
+    <span id="office-fb" style="margin-left:0.6em; font-size:0.9em; display:none"></span>
+  </div>
+</section>
+
 <script>
 /*!
  * html2canvas 1.4.1 <https://html2canvas.hertzen.com>
@@ -514,6 +532,9 @@ const STRINGS = {
     help3d: "● 日期：依「顯示日期來輔助」的選擇；選「不顯示」時，週一~五自動用當週、週六日用下週。",
     sec4Title: "4. 自己的課表",
     selfScreenshot: "📸 截圖（自己課表）",
+    officeTitle: "5. 教務處參考",
+    officeNote: "（三角調異動總表，黑框、可一起截圖給教務處）",
+    officeScreenshot: "📸 截圖（教務處整理）",
     footerIssue: "用起來有問題？",
     modalSub: '這個程式只能幫忙對課表找時段，但不知道其他調代課規則。<br>This tool only matches schedules to find slots; it doesn\'t know other substitution rules.',
     modalOk: "我知道了 / Got it",
@@ -660,6 +681,9 @@ const STRINGS = {
     help3d: '● Date: follows the "Show date" setting; when "None", Mon–Fri use this week, Sat/Sun use next week.',
     sec4Title: "4. My own schedule",
     selfScreenshot: "📸 Screenshot (my schedule)",
+    officeTitle: "5. Office reference",
+    officeNote: "(triangle-swap change tables, black border, screenshot together for the office)",
+    officeScreenshot: "📸 Screenshot (office tables)",
     footerIssue: "Having trouble?",
     modalSub: '這個程式只能幫忙對課表找時段，但不知道其他調代課規則。<br>This tool only matches schedules to find slots; it doesn\'t know other substitution rules.',
     modalOk: "我知道了 / Got it",
@@ -1299,6 +1323,7 @@ function render() {
     if (panel0) { panel0.style.display = "none"; panel0.className = ""; }
     document.getElementById("partner-section").style.display = "none";
     document.getElementById("self-section").style.display = "none";
+    document.getElementById("office-section").style.display = "none";
     return;
   }
   // ── 雙課表版：A 課表永遠保留在左；三角調進行中時 B 課表出現在右並接管互動 ──
@@ -1332,6 +1357,7 @@ function render() {
   renderPartnerSchedules();
   renderTriangles();
   renderSelfSchedule();
+  renderOffice();
   document.getElementById("post-confirm-hint").hidden = state.confirmed.length === 0;
   // 點完請假時段後才出現「↓在下方列表找要調代課的時段」
   document.getElementById("find-partner-hint").hidden = !state.leaveSlot;
@@ -1827,8 +1853,7 @@ function generateTriangleMatrix(tri) {
   const rows = [
     { tag: "A", code: tri.aCode }, { tag: "B", code: tri.bCode }, { tag: "C", code: tri.cCode },
   ];
-  let html = `<div style="font-weight:700; font-size:0.9em; margin:0.6em 0 0.3em;">${t("triMatrixTitle")}</div>`;
-  html += `<table class="schedule" style="table-layout:auto;"><thead><tr><th style="width:auto">${t("triMatrixWho")}</th>`;
+  let html = `<table class="schedule" style="table-layout:auto;"><thead><tr><th style="width:auto">${t("triMatrixWho")}</th>`;
   for (const c of cols) html += `<th>${dayName(c.day)}<br>${LANG === "en" ? "P" + c.period : "第" + c.period + "節"}</th>`;
   html += `</tr></thead><tbody>`;
   for (const r of rows) {
@@ -1879,7 +1904,6 @@ function renderTriangles() {
     html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardA", aName)}</div>${renderMarkedTable(tri.aCode, marks.a)}</div>`;
     html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardB", bName)}</div>${renderMarkedTable(tri.bCode, marks.b)}</div>`;
     html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardC", cName)}</div>${renderMarkedTable(tri.cCode, marks.c)}</div>`;
-    html += generateTriangleMatrix(tri);
     html += `</div>`;
   });
   div.insertAdjacentHTML("beforeend", html);
@@ -1915,6 +1939,38 @@ function doShotTriangle(id) {
   const tri = triById(id);
   const fname = `三角調_${teacherInfo(tri.aCode).name}_${teacherInfo(tri.bCode).name}_${teacherInfo(tri.cCode).name}_${dateStamp()}.png`;
   captureTable(card, fname, (msg, ok) => showFb(id, msg, ok));
+}
+
+// 教務處參考：把所有三角調的異動總表集中一區（黑框），可一次截圖
+function renderOffice() {
+  const sec = document.getElementById("office-section");
+  const div = document.getElementById("office-tables");
+  if (!sec || !div) return;
+  const tris = state.confirmed.filter(c => c.type === "triangle");
+  if (tris.length === 0) { sec.style.display = "none"; div.innerHTML = ""; return; }
+  sec.style.display = "block";
+  let html = "";
+  for (const tri of tris) {
+    const aName = teacherInfo(tri.aCode).name, bName = teacherInfo(tri.bCode).name, cName = teacherInfo(tri.cCode).name;
+    html += `<div class="office-block"><div class="office-cap">🔺 ${aName} ← ${bName} ← ${cName}</div>${generateTriangleMatrix(tri)}</div>`;
+  }
+  div.innerHTML = html;
+  const btn = document.getElementById("office-screenshot");
+  if (btn) btn.onclick = doShotOffice;
+}
+function doShotOffice() {
+  const div = document.getElementById("office-tables");
+  if (!div) return;
+  const fname = `三角調_教務處整理_${dateStamp()}.png`;
+  captureTable(div, fname, showOfficeFb);
+}
+function showOfficeFb(msg, ok) {
+  const el = document.getElementById("office-fb");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = "inline";
+  el.style.color = ok ? "var(--swap)" : "#dc2626";
+  setTimeout(() => { el.style.display = "none"; }, 2500);
 }
 
 // 預先索引：班級 → 教過的老師 set
@@ -2089,7 +2145,6 @@ function groupTitleHtml(g, caretHtml) {
 }
 
 function renderGroups(groups, leaveKlass, leaveDetail) {
-  currentGroups = groups;
   let html = '';
   for (const g of groups) {
     const expanded = isGroupExpanded(g);
@@ -2209,16 +2264,25 @@ function renderPanel() {
   }
   html += `</div>`;
 
-  // 三角調入口：A 已選好請假時段、尚未進入三角調時顯示
-  if (state.mode === "leaveSelected" && !state.triangle) {
-    html += `<div style="margin:0.6em 0; padding:0.5em 0.7em; background:#fff7ed; border:1px dashed var(--partner); border-radius:6px;">`;
-    html += `<button id="tri-enter-btn" style="border-color:var(--partner); color:var(--partner); font-weight:700;">${t("triEnterBtn")}</button>`;
-    html += `<div class="sec-note" style="margin-top:0.3em">${t("triEnterHint")}</div>`;
-    html += `</div>`;
-  }
+  // 三角調入口（排在「第二優先」群組後面，第一版＝leaveSelected 且尚未進入三角調時顯示）
+  const triEnterHtml = (state.mode === "leaveSelected" && !state.triangle)
+    ? `<div style="margin:0.6em 0; padding:0.5em 0.7em; background:#fff7ed; border:1px dashed var(--partner); border-radius:6px;">` +
+      `<button id="tri-enter-btn" style="border-color:var(--partner); color:var(--partner); font-weight:700;">${t("triEnterBtn")}</button>` +
+      `<div class="sec-note" style="margin-top:0.3em">${t("triEnterHint")}</div></div>`
+    : "";
 
   if (state.mode === "leaveSelected" || state.mode === "partnerSelected") {
-    html += renderGroups(groups, e.klass, e.courseDetail);
+    currentGroups = groups;   // 摺疊切換查全部群組；分兩段渲染才不會被覆蓋
+    if (triEnterHtml) {
+      // priority < 3＝連堂/第一優先(同班)/第二優先(同科)；其餘(其他科…)排在三角調入口後
+      const hi = groups.filter(g => g.priority < 3);
+      const lo = groups.filter(g => g.priority >= 3);
+      html += renderGroups(hi, e.klass, e.courseDetail);
+      html += triEnterHtml;
+      html += renderGroups(lo, e.klass, e.courseDetail);
+    } else {
+      html += renderGroups(groups, e.klass, e.courseDetail);
+    }
   }
 
   if (state.mode === "partnerSelected") {
