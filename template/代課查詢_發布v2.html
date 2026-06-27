@@ -73,6 +73,14 @@
   .table-label-b {
     color: #92400e; background: #fef3c7; border-color: #d97706;
   }
+  /* 三角調樞紐格：B 在這節同時「代 A」與「自己的課由 C 代」→ 上下兩色塊 */
+  td.cell-split { padding: 0 !important; }
+  td.cell-split .split-half {
+    padding: 3px 2px; min-height: 2.05em;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    line-height: 1.2;
+  }
+  td.cell-split .split-top { border-bottom: 2px solid #b45309; }
   #b-table-wrap { animation: bSlideIn 0.18s ease-out; }
   @keyframes bSlideIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
   td.cell-occupied { background: #fef9c3; cursor: pointer; }
@@ -601,6 +609,7 @@ const STRINGS = {
     triAnnoCoverB: (b) => `↪ 代 ${b}`,
     triAnnoCoverC: (c) => `↪ 代 ${c}`,
     triAnnoRest: (b) => `⨯ 不用上（${b} 代）`,
+    triSplitYourClassC: (c) => `⨯ 原課由 ${c} 代`,
     triCardA: (a) => `${a} 老師（你）課表`,
     triCardB: (b) => `${b} 老師課表`,
     triCardC: (c) => `${c} 老師課表`,
@@ -734,6 +743,7 @@ const STRINGS = {
     triAnnoCoverB: (b) => `↪ Cover ${b}`,
     triAnnoCoverC: (c) => `↪ Cover ${c}`,
     triAnnoRest: (b) => `⨯ Off (${b} covers)`,
+    triSplitYourClassC: (c) => `⨯ orig. class → ${c}`,
     triCardA: (a) => `${a} (you) schedule`,
     triCardB: (b) => `${b} schedule`,
     triCardC: (c) => `${c} schedule`,
@@ -1686,6 +1696,12 @@ function renderMarkedTable(tcode, marks) {
     html += `<tr><th>${p}</th>`;
     for (let d = 1; d <= 5; d++) {
       const m = marks[`${d}-${p}`];
+      if (m && m.split) {
+        html += `<td class="cell-split" style="cursor:default">` +
+                `<div class="split-half split-top ${m.topCls}">${m.topHtml}</div>` +
+                `<div class="split-half split-bot ${m.botCls}">${m.botHtml}</div></td>`;
+        continue;
+      }
       const e = getEntry(tcode, d, p);
       let cls, content, shownCourse;
       if (m) { cls = m.cls; content = m.content; shownCourse = m.shownCourse; }
@@ -1712,8 +1728,14 @@ function triangleMarks(tri) {
   const a = {}, b = {}, c = {};
   // A 表：S → A 的課，請 B 代
   a[sk] = { cls: "cell-confirmed-leave-sub", content: `${fmtCK(aE)}${anno(t("cellTriSubFor", bName))}`, shownCourse: aE && aE.course };
-  // B 表：S → 代 A（B 自己的課交給 C）
-  b[sk] = { cls: "cell-confirmed-swap-in", content: `${fmtCK(aE)}${anno(t("triAnnoCoverA", aName))}`, shownCourse: aE && aE.course };
+  // B 表：S 是樞紐格 → 上半「代 A」、下半「自己的課由 C 代（不用上）」
+  b[sk] = {
+    split: true,
+    topCls: "cell-confirmed-swap-in",
+    topHtml: `${fmtCK(aE)}${anno(t("triAnnoCoverA", aName))}`,
+    botCls: "cell-confirmed-leave-swap",
+    botHtml: `${fmtCK(bE)}${anno(t("triSplitYourClassC", cName))}`,
+  };
   // C 表：S → 代 B
   c[sk] = { cls: "cell-confirmed-swap-in", content: `${fmtCK(bE)}${anno(t("triAnnoCoverB", bName))}`, shownCourse: bE && bE.course };
   if (tri.legType === "swap") {
