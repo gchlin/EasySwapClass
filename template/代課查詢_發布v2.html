@@ -73,6 +73,9 @@
   .table-label-b {
     color: #92400e; background: #fef3c7; border-color: #d97706;
   }
+  /* 三角調配色：綠＝去代、橘＝不用去（同一規則用於分割格與教務處矩陣） */
+  .tri-go  { background: #bbf7d0; color: #065f46; }
+  .tri-off { background: #fed7aa; color: #9a3412; }
   /* 三角調樞紐格：B 在這節同時「代 A」與「自己的課由 C 代」→ 上下兩色塊 */
   td.cell-split { padding: 0 !important; }
   td.cell-split .split-half {
@@ -620,6 +623,7 @@ const STRINGS = {
     triMatrixTitle: "📋 教務處參考 · 異動總表",
     triMatrixWho: "老師",
     triMatrixALeave: (b) => `↩ 請假（${b} 代）`,
+    triMatrixLeaveTag: "（請假）",
 
     verLabel: (v) => `資料版本 ${v}`,
     verNone: "資料版本（未標示）",
@@ -757,6 +761,7 @@ const STRINGS = {
     triMatrixTitle: "📋 Office reference · change overview",
     triMatrixWho: "Teacher",
     triMatrixALeave: (b) => `↩ on leave (${b} covers)`,
+    triMatrixLeaveTag: "(on leave)",
 
     verLabel: (v) => `Data version ${v}`,
     verNone: "Data version (unmarked)",
@@ -1734,12 +1739,12 @@ function triangleMarks(tri) {
   const a = {}, b = {}, c = {};
   // A 表：S → A 的課，請 B 代
   a[sk] = { cls: "cell-confirmed-leave-sub", content: `${fmtCK(aE)}${anno(t("cellTriSubFor", bName))}`, shownCourse: aE && aE.course };
-  // B 表：S 是樞紐格 → 上半「代 A」、下半「自己的課由 C 代（不用上）」
+  // B 表：S 是樞紐格 → 上半「代 A（綠·去代）」、下半「原課由 C 代（橘·不用去）」
   b[sk] = {
     split: true,
-    topCls: "cell-confirmed-swap-in",
+    topCls: "tri-go",
     topHtml: `${fmtCK(aE)}${anno(t("triAnnoCoverA", aName))}`,
-    botCls: "cell-confirmed-leave-swap",
+    botCls: "tri-off",
     botHtml: `${fmtCK(bE)}${anno(t("triSplitYourClassC", cName))}`,
   };
   // C 表：S → 代 B
@@ -1789,21 +1794,26 @@ function matrixCell(tri, role, day, period, ctxE) {
   const isS = day === S.day && period === S.period;
   const isSwap = tri.legType === "swap" && day === tri.swapDay && period === tri.swapPeriod;
   const anno = txt => `<span class="anno">${txt}</span>`;
-  const bName = teacherInfo(tri.bCode).name, cName = teacherInfo(tri.cCode).name;
+  const aName = teacherInfo(tri.aCode).name, bName = teacherInfo(tri.bCode).name, cName = teacherInfo(tri.cCode).name;
   const swE = tri.legType === "swap" ? getEntry(tri.cCode, tri.swapDay, tri.swapPeriod) : null;
   if (role === "A") {
-    if (isS) return { cls: "cell-confirmed-leave-swap", html: `${fmtCK(ctxE.aE)}${anno(t("triMatrixALeave", bName))}` };
+    // A 只是請假（被動）→ 灰底脈絡，標示（請假）；綠/橘留給「去代／不用去」
+    if (isS) return { cls: "cell-partner-context", html: `${fmtCK(ctxE.aE)}${anno(t("triMatrixLeaveTag"))}` };
     return null;
   }
   if (role === "B") {
-    if (isS) return { cls: "cell-confirmed-swap-in",
-      html: `${fmtCK(ctxE.aE)}${anno(t("triAnnoCoverA", teacherInfo(tri.aCode).name))}<br><span style="font-size:0.82em; opacity:0.85">${fmtCK(ctxE.bE)} ${t("triSplitYourClassC", cName)}</span>` };
-    if (isSwap) return { cls: "cell-confirmed-swap-in", html: `${fmtCK(swE)}${anno(t("triAnnoCoverC", cName))}` };
+    // 樞紐格：上半「代 A（綠）」、下半「原課由 C 代（橘）」
+    if (isS) return {
+      split: true,
+      topCls: "tri-go", topHtml: `${fmtCK(ctxE.aE)}${anno(t("triAnnoCoverA", aName))}`,
+      botCls: "tri-off", botHtml: `${fmtCK(ctxE.bE)}${anno(t("triSplitYourClassC", cName))}`,
+    };
+    if (isSwap) return { cls: "tri-go", html: `${fmtCK(swE)}${anno(t("triAnnoCoverC", cName))}` };
     return null;
   }
   if (role === "C") {
-    if (isS) return { cls: "cell-confirmed-swap-in", html: `${fmtCK(ctxE.bE)}${anno(t("triAnnoCoverB", bName))}` };
-    if (isSwap) return { cls: "cell-confirmed-leave-swap", html: `${fmtCK(swE)}${anno(t("triAnnoRest", bName))}` };
+    if (isS) return { cls: "tri-go", html: `${fmtCK(ctxE.bE)}${anno(t("triAnnoCoverB", bName))}` };
+    if (isSwap) return { cls: "tri-off", html: `${fmtCK(swE)}${anno(t("triAnnoRest", bName))}` };
     return null;
   }
   return null;
@@ -1825,7 +1835,11 @@ function generateTriangleMatrix(tri) {
     html += `<tr><th style="text-align:left; white-space:nowrap;">${r.tag} · ${teacherInfo(r.code).name}</th>`;
     for (const c of cols) {
       const cc = matrixCell(tri, r.tag, c.day, c.period, ctxE);
-      if (cc) {
+      if (cc && cc.split) {
+        html += `<td class="cell-split" style="cursor:default">` +
+                `<div class="split-half split-top ${cc.topCls}">${cc.topHtml}</div>` +
+                `<div class="split-half split-bot ${cc.botCls}">${cc.botHtml}</div></td>`;
+      } else if (cc) {
         const e = getEntry(r.code, c.day, c.period);
         const subCls = (e && isSubOnlyCourse(e.course)) ? " sub-only" : "";
         html += `<td class="${cc.cls}${subCls}" style="cursor:default">${cc.html}</td>`;
