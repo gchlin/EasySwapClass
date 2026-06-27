@@ -617,6 +617,9 @@ const STRINGS = {
     triTableA: (a) => `👤 ${a} 老師（你）— 想請假的課`,
     triTableB: (b) => `🔺 ${b} 老師 — 正在幫他處理這節`,
     triAContextPending: "🔺 這節處理中",
+    triMatrixTitle: "📋 教務處參考 · 異動總表",
+    triMatrixWho: "老師",
+    triMatrixALeave: (b) => `↩ 請假（${b} 代）`,
 
     verLabel: (v) => `資料版本 ${v}`,
     verNone: "資料版本（未標示）",
@@ -751,6 +754,9 @@ const STRINGS = {
     triTableA: (a) => `👤 ${a} (you) — class you want off`,
     triTableB: (b) => `🔺 ${b} — handling this period for them`,
     triAContextPending: "🔺 handling this",
+    triMatrixTitle: "📋 Office reference · change overview",
+    triMatrixWho: "Teacher",
+    triMatrixALeave: (b) => `↩ on leave (${b} covers)`,
 
     verLabel: (v) => `Data version ${v}`,
     verNone: "Data version (unmarked)",
@@ -1777,6 +1783,63 @@ function generateTriangleSummary(tri) {
   return `${zhBlock}\n\n${enBlock}`;
 }
 
+// 教務處參考矩陣：列=A/B/C，欄=受影響節次（S，調課再加 swapSlot），每位老師一個 highlight 狀態格
+function matrixCell(tri, role, day, period, ctxE) {
+  const S = tri.slot;
+  const isS = day === S.day && period === S.period;
+  const isSwap = tri.legType === "swap" && day === tri.swapDay && period === tri.swapPeriod;
+  const anno = txt => `<span class="anno">${txt}</span>`;
+  const bName = teacherInfo(tri.bCode).name, cName = teacherInfo(tri.cCode).name;
+  const swE = tri.legType === "swap" ? getEntry(tri.cCode, tri.swapDay, tri.swapPeriod) : null;
+  if (role === "A") {
+    if (isS) return { cls: "cell-confirmed-leave-swap", html: `${fmtCK(ctxE.aE)}${anno(t("triMatrixALeave", bName))}` };
+    return null;
+  }
+  if (role === "B") {
+    if (isS) return { cls: "cell-confirmed-swap-in",
+      html: `${fmtCK(ctxE.aE)}${anno(t("triAnnoCoverA", teacherInfo(tri.aCode).name))}<br><span style="font-size:0.82em; opacity:0.85">${fmtCK(ctxE.bE)} ${t("triSplitYourClassC", cName)}</span>` };
+    if (isSwap) return { cls: "cell-confirmed-swap-in", html: `${fmtCK(swE)}${anno(t("triAnnoCoverC", cName))}` };
+    return null;
+  }
+  if (role === "C") {
+    if (isS) return { cls: "cell-confirmed-swap-in", html: `${fmtCK(ctxE.bE)}${anno(t("triAnnoCoverB", bName))}` };
+    if (isSwap) return { cls: "cell-confirmed-leave-swap", html: `${fmtCK(swE)}${anno(t("triAnnoRest", bName))}` };
+    return null;
+  }
+  return null;
+}
+function generateTriangleMatrix(tri) {
+  const S = tri.slot;
+  const aE = getEntry(tri.aCode, S.day, S.period), bE = getEntry(tri.bCode, S.day, S.period);
+  const ctxE = { aE, bE };
+  const cols = [{ day: S.day, period: S.period }];
+  if (tri.legType === "swap") cols.push({ day: tri.swapDay, period: tri.swapPeriod });
+  const rows = [
+    { tag: "A", code: tri.aCode }, { tag: "B", code: tri.bCode }, { tag: "C", code: tri.cCode },
+  ];
+  let html = `<div style="font-weight:700; font-size:0.9em; margin:0.6em 0 0.3em;">${t("triMatrixTitle")}</div>`;
+  html += `<table class="schedule" style="table-layout:auto;"><thead><tr><th style="width:auto">${t("triMatrixWho")}</th>`;
+  for (const c of cols) html += `<th>${dayName(c.day)}<br>${LANG === "en" ? "P" + c.period : "第" + c.period + "節"}</th>`;
+  html += `</tr></thead><tbody>`;
+  for (const r of rows) {
+    html += `<tr><th style="text-align:left; white-space:nowrap;">${r.tag} · ${teacherInfo(r.code).name}</th>`;
+    for (const c of cols) {
+      const cc = matrixCell(tri, r.tag, c.day, c.period, ctxE);
+      if (cc) {
+        const e = getEntry(r.code, c.day, c.period);
+        const subCls = (e && isSubOnlyCourse(e.course)) ? " sub-only" : "";
+        html += `<td class="${cc.cls}${subCls}" style="cursor:default">${cc.html}</td>`;
+      } else {
+        const e = getEntry(r.code, c.day, c.period);
+        html += `<td class="cell-partner-context" style="cursor:default">${fmtCK(e)}</td>`;
+      }
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
 function renderTriangles() {
   const div = document.getElementById("partner-schedules");
   if (!div) return;
@@ -1802,6 +1865,7 @@ function renderTriangles() {
     html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardA", aName)}</div>${renderMarkedTable(tri.aCode, marks.a)}</div>`;
     html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardB", bName)}</div>${renderMarkedTable(tri.bCode, marks.b)}</div>`;
     html += `<div style="margin-top:0.5em"><div style="font-weight:700; font-size:0.9em; margin:0.3em 0;">${t("triCardC", cName)}</div>${renderMarkedTable(tri.cCode, marks.c)}</div>`;
+    html += generateTriangleMatrix(tri);
     html += `</div>`;
   });
   div.insertAdjacentHTML("beforeend", html);
