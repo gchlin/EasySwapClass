@@ -65,6 +65,16 @@
     height: 4.5em;
   }
   table.schedule th { background: #f3f4f6; height: auto; }
+  .table-label {
+    font-weight: 800; font-size: 0.92em; color: #1c1917;
+    padding: 0.3em 0.5em; margin-bottom: 0.3em;
+    border-radius: 5px; background: #f3f4f6; border: 1px solid var(--border);
+  }
+  .table-label-b {
+    color: #92400e; background: #fef3c7; border-color: #d97706;
+  }
+  #b-table-wrap { animation: bSlideIn 0.18s ease-out; }
+  @keyframes bSlideIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
   td.cell-occupied { background: #fef9c3; cursor: pointer; }
   td.cell-occupied:hover { background: #fde68a; }
   td.cell-empty { color: #d1d5db; background: #fafafa; }
@@ -379,7 +389,16 @@
     </select>
     <span id="find-partner-hint" hidden style="margin-left:0.6em; color:#2563eb; font-weight:bold" data-i18n-html="findPartnerHint"><span class="hint-arrow">↓</span>在下方找調代課<span class="hint-keyword cand-btn pri-1">老師</span><span class="hint-arrow">↓</span></span>
   </div>
-  <table class="schedule" id="schedule"></table>
+  <div id="schedule-row" style="display:flex; gap:1em; align-items:flex-start; flex-wrap:wrap;">
+    <div id="a-table-wrap" style="flex:1 1 340px; min-width:0;">
+      <div id="a-table-label" class="table-label" hidden></div>
+      <table class="schedule" id="schedule"></table>
+    </div>
+    <div id="b-table-wrap" style="flex:1 1 340px; min-width:0; display:none;">
+      <div id="b-table-label" class="table-label table-label-b"></div>
+      <table class="schedule" id="b-schedule"></table>
+    </div>
+  </div>
   <div id="panel" style="display:none"></div>
   <div style="margin-top:0.6em">
     <button class="danger" id="reset-btn" data-i18n="resetBtn">清除全部已選方案</button>
@@ -586,6 +605,9 @@ const STRINGS = {
     triCardB: (b) => `${b} 老師課表`,
     triCardC: (c) => `${c} 老師課表`,
     triMsgHeader: "🔺 三角調 提醒：",
+    triTableA: (a) => `👤 ${a} 老師（你）— 想請假的課`,
+    triTableB: (b) => `🔺 ${b} 老師 — 正在幫他處理這節`,
+    triAContextPending: "🔺 這節處理中",
 
     verLabel: (v) => `資料版本 ${v}`,
     verNone: "資料版本（未標示）",
@@ -716,6 +738,9 @@ const STRINGS = {
     triCardB: (b) => `${b} schedule`,
     triCardC: (c) => `${c} schedule`,
     triMsgHeader: "🔺 Triangle swap reminder:",
+    triTableA: (a) => `👤 ${a} (you) — class you want off`,
+    triTableB: (b) => `🔺 ${b} — handling this period for them`,
+    triAContextPending: "🔺 handling this",
 
     verLabel: (v) => `Data version ${v}`,
     verNone: "Data version (unmarked)",
@@ -1172,18 +1197,8 @@ function computeCellState(d, p) {
   return { cls: "cell-empty", html: "·" };
 }
 
-function render() {
-  // 未選老師（停在「空」）→ 清空並隱藏相關區塊，避免空值 render
-  if (!meCode()) {
-    document.getElementById("schedule").innerHTML = "";
-    document.getElementById("legend").innerHTML = "";
-    const panel0 = document.getElementById("panel");
-    if (panel0) { panel0.style.display = "none"; panel0.className = ""; }
-    document.getElementById("partner-section").style.display = "none";
-    document.getElementById("self-section").style.display = "none";
-    return;
-  }
-  const tbl = document.getElementById("schedule");
+// 互動課表（focus 老師視角）：computeCellState 已以 focusCode() 為主角
+function buildFocusGrid() {
   let html = buildHeader("below") + '<tbody>';
   for (let p = 1; p <= 7; p++) {
     html += `<tr><th>${p}</th>`;
@@ -1197,11 +1212,99 @@ function render() {
     }
     html += '</tr>';
   }
-  html += '</tbody>';
-  tbl.innerHTML = html;
-  tbl.querySelectorAll("td").forEach(td => {
+  return html + '</tbody>';
+}
+function wireGridClicks(tbl) {
+  tbl.querySelectorAll("td[data-day]").forEach(td => {
     td.addEventListener("click", () => onCellClick(parseInt(td.dataset.day), parseInt(td.dataset.period)));
   });
+}
+
+// 三角調進行中，A 課表保留為唯讀脈絡：標出正在處理的那一節，並保留 A 已成立的方案標記
+function aContextMark(d, p) {
+  for (const c of state.confirmed) {
+    if (c.type === "triangle") {
+      if (c.slot.day === d && c.slot.period === p) {
+        const e = getEntry(c.aCode, d, p), b = teacherInfo(c.bCode);
+        return { cls: "cell-confirmed-leave-sub", content: `${fmtCK(e)}<span class="anno">${t("cellTriSubFor", b.name)}</span>` };
+      }
+    } else if (c.day === d && c.period === p) {
+      const e = getEntry(meCode(), d, p), partner = teacherInfo(c.partnerCode);
+      if (c.type === "sub") return { cls: "cell-confirmed-leave-sub", content: `${fmtCK(e)}<span class="anno">${t("cellSubFor", partner.name)}</span>` };
+      const pc = getEntry(c.partnerCode, c.swapDay, c.swapPeriod);
+      return { cls: "cell-confirmed-leave-swap", content: `${fmtCK(e)}<span class="anno">${t("cellSwapWith", partner.name, pc.klass)}</span>` };
+    } else if (c.type === "swap" && c.swapDay === d && c.swapPeriod === p) {
+      const partner = teacherInfo(c.partnerCode), pc = getEntry(c.partnerCode, d, p);
+      return { cls: "cell-confirmed-swap-in", content: `<span class="anno">${t("cellCoverFor", partner.name)}</span>${fmtCK(pc)}` };
+    }
+  }
+  return null;
+}
+function buildAContextGrid() {
+  const tcode = meCode();
+  const S = state.triangle.slot;
+  let html = buildHeader("below") + '<tbody>';
+  for (let p = 1; p <= 7; p++) {
+    html += `<tr><th>${p}</th>`;
+    for (let d = 1; d <= 5; d++) {
+      const e = getEntry(tcode, d, p);
+      let cls, content;
+      if (d === S.day && p === S.period) {
+        cls = "cell-leave-active";
+        content = `${fmtCK(e)}<span class="anno">${t("triAContextPending")}</span>`;
+      } else {
+        const mk = aContextMark(d, p);
+        if (mk) { cls = mk.cls; content = mk.content; }
+        else { cls = "cell-partner-context"; content = fmtCK(e); }
+      }
+      const subCls = (e && isSubOnlyCourse(e.course)) ? " sub-only" : "";
+      const pos = inquiryPositionFor(tcode, d, p);
+      const inqCls = subCls ? "" : (pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "");
+      html += `<td class="${cls}${inqCls}${subCls}" style="cursor:default">${content}</td>`;
+    }
+    html += '</tr>';
+  }
+  return html + '</tbody>';
+}
+
+function render() {
+  // 未選老師（停在「空」）→ 清空並隱藏相關區塊，避免空值 render
+  if (!meCode()) {
+    document.getElementById("schedule").innerHTML = "";
+    document.getElementById("b-table-wrap").style.display = "none";
+    document.getElementById("a-table-label").hidden = true;
+    document.getElementById("legend").innerHTML = "";
+    const panel0 = document.getElementById("panel");
+    if (panel0) { panel0.style.display = "none"; panel0.className = ""; }
+    document.getElementById("partner-section").style.display = "none";
+    document.getElementById("self-section").style.display = "none";
+    return;
+  }
+  // ── 雙課表版：A 課表永遠保留在左；三角調進行中時 B 課表出現在右並接管互動 ──
+  const aLabel = document.getElementById("a-table-label");
+  const bWrap = document.getElementById("b-table-wrap");
+  const bLabel = document.getElementById("b-table-label");
+  const aTbl = document.getElementById("schedule");
+
+  if (inTriangleB()) {
+    // 左：A 課表（唯讀脈絡，標出正在處理的那一節）
+    aTbl.innerHTML = buildAContextGrid();
+    aLabel.hidden = false;
+    aLabel.innerHTML = t("triTableA", me().name);
+    aLabel.className = "table-label";
+    // 右：B 課表（互動，focus=B）
+    bWrap.style.display = "";
+    const bTbl = document.getElementById("b-schedule");
+    bTbl.innerHTML = buildFocusGrid();
+    wireGridClicks(bTbl);
+    bLabel.innerHTML = t("triTableB", teacherInfo(state.triangle.bCode).name);
+  } else {
+    // 一般：A 課表互動（focus=A），不顯示 B
+    bWrap.style.display = "none";
+    aLabel.hidden = true;
+    aTbl.innerHTML = buildFocusGrid();
+    wireGridClicks(aTbl);
+  }
 
   renderLegend();
   renderPanel();
