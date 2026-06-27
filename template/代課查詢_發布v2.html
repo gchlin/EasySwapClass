@@ -451,7 +451,7 @@
     <h2 data-i18n="officeTitle">5. 教務處參考</h2>
     <span class="sec-note" data-i18n="officeNote">（每列只有兩位老師：誰代誰、誰與誰調課，方便出通知單）</span>
   </div>
-  <pre id="office-list" style="background:#f9fafb; border:1px solid var(--border); padding:0.6em 0.8em; border-radius:4px; margin:0.4em 0; white-space:pre-wrap; word-break:break-word; font-size:0.92em; line-height:1.7; font-family:inherit;"></pre>
+  <pre id="office-list" style="background:#f9fafb; border:1px solid var(--border); padding:0.6em 0.8em; border-radius:4px; margin:0.4em 0; white-space:pre; overflow-x:auto; font-size:0.92em; line-height:1.7; font-family:'MingLiU','Sarasa Mono TC','Noto Sans Mono CJK TC','MS Gothic','SimSun',monospace;"></pre>
   <div style="margin:0.4em 0">
     <button class="primary" id="office-copy" style="padding:0.5em 1em" data-i18n="officeCopy">📋 複製清單</button>
     <span id="office-copy-fb" style="margin-left:0.6em; font-size:0.9em; display:none"></span>
@@ -1980,29 +1980,63 @@ function officeRows() {
   }
   return rows;
 }
+// 顯示寬度：中日韓／全形字算 2，其餘算 1（用於等寬欄位對齊）
+function dispWidth(s) {
+  let w = 0;
+  for (const ch of String(s)) {
+    const c = ch.codePointAt(0);
+    const wide = (c >= 0x1100 && c <= 0x115F) || c === 0x2329 || c === 0x232A ||
+      (c >= 0x2E80 && c <= 0xA4CF && c !== 0x303F) || (c >= 0xAC00 && c <= 0xD7A3) ||
+      (c >= 0xF900 && c <= 0xFAFF) || (c >= 0xFE30 && c <= 0xFE4F) ||
+      (c >= 0xFF00 && c <= 0xFF60) || (c >= 0xFFE0 && c <= 0xFFE6) ||
+      (c >= 0x1F300 && c <= 0x1FAFF) || (c >= 0x20000 && c <= 0x3FFFD);
+    w += wide ? 2 : 1;
+  }
+  return w;
+}
+function padW(s, n) { s = String(s); const d = n - dispWidth(s); return d > 0 ? s + " ".repeat(d) : s; }
+function maxW(arr) { return arr.reduce((m, s) => Math.max(m, dispWidth(s)), 0); }
+
 function generateOfficeList() {
   const dates = getWeekDates(pickWeekMode());
   const dstr = (d) => dates ? `${dates[d-1].getMonth()+1}/${dates[d-1].getDate()}(${DAY_NAMES[d]})` : `星期${DAY_NAMES[d]}`;
+  const per = (p) => `第${p}節`;
+  const kz = (k) => k ? `${k}班` : "—";
   const rows = officeRows();
   const subs = rows.filter(r => r.kind === "sub");
   const swaps = rows.filter(r => r.kind === "swap");
-  const kz = (k) => k ? ` ${k}班` : "";
   const out = ["調代課通知清單（教務處）"];
   let n = 0;
+
   if (subs.length) {
+    // 欄寬：日期 / 節次 / 課名 / 班級 / 原任課老師（皆等寬對齊）
+    const wD = maxW(subs.map(r => dstr(r.day)));
+    const wP = maxW(subs.map(r => per(r.period)));
+    const wC = maxW(subs.map(r => r.course));
+    const wK = maxW(subs.map(r => kz(r.klass)));
+    const wO = maxW(subs.map(r => r.orig));
     out.push("", "【代課】誰代誰的課");
     for (const r of subs) {
       n++;
-      out.push(`${n}. ${dstr(r.day)} 第${r.period}節　${r.course}${kz(r.klass)}　原任課 ${r.orig} → 由 ${r.cover} 代課`);
+      out.push(`☐ ${padW(dstr(r.day), wD)}  ${padW(per(r.period), wP)}  ${padW(r.course, wC)} ${padW(kz(r.klass), wK)}  原任課 ${padW(r.orig, wO)} → 由 ${r.cover} 代課`);
     }
   }
+
   if (swaps.length) {
+    // 明細兩行共用欄寬（取所有對調節次一起算）
+    const legs = swaps.flatMap(r => [r.a, r.b]);
+    const wD = maxW(legs.map(l => dstr(l.day)));
+    const wP = maxW(legs.map(l => per(l.period)));
+    const wC = maxW(legs.map(l => l.course));
+    const wK = maxW(legs.map(l => kz(l.klass)));
+    const wO = maxW(legs.map(l => l.owner));
+    const line = (l) => `    ${padW(dstr(l.day), wD)}  ${padW(per(l.period), wP)}  ${padW(l.course, wC)} ${padW(kz(l.klass), wK)}  原 ${padW(l.owner, wO)} → 改由 ${l.to} 上`;
     out.push("", "【調課】誰與誰對調");
     for (const r of swaps) {
       n++;
-      out.push(`${n}. ${r.t1} ⇄ ${r.t2}`);
-      out.push(`　　${dstr(r.a.day)} 第${r.a.period}節 ${r.a.course}${kz(r.a.klass)}（原 ${r.a.owner}）改由 ${r.a.to} 上`);
-      out.push(`　　${dstr(r.b.day)} 第${r.b.period}節 ${r.b.course}${kz(r.b.klass)}（原 ${r.b.owner}）改由 ${r.b.to} 上`);
+      out.push(`☐ ${r.t1} ⇄ ${r.t2}`);
+      out.push(line(r.a));
+      out.push(line(r.b));
     }
   }
   return out.join("\n");
