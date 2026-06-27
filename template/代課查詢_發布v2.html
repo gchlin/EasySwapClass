@@ -2105,13 +2105,21 @@ function teachesKlass(tcode, klass) {
   return klass && KLASS_TO_TEACHERS[klass] && KLASS_TO_TEACHERS[klass].has(tcode);
 }
 
-// 協同/雙師：同一節、同一班級的其他老師（探究／IPSS 等雙師協同授課）。
-// 同班級同節次＝同一堂課，這些老師是和你一起上同一堂，不能當三角調的 B。
-function coTeacherCodesAt(klass, day, period, excludeCode) {
+// 協同/雙師：與我同一節在「同一堂課」的其他老師，不能當三角調的 B。
+//   探究／IPSS 等：多班併班、各掛不同班級代碼（如 114A/115A/116A），
+//     但同課名同節次＝同一個協同大區塊 → 用「課名」比對。
+//   一般雙師：同一班級同節次＝同一堂 → 用「班級」比對。
+function coTeacherCodesAt(aEntry, day, period, excludeCode) {
   const set = new Set();
-  if (!klass) return set;
+  if (!aEntry) return set;
+  const inquiry = isInquiryCourse(aEntry.course);
   for (const d of DATA) {
-    if (d.day === day && d.period === period && d.klass === klass && d.tcode !== excludeCode) set.add(d.tcode);
+    if (d.day !== day || d.period !== period || d.tcode === excludeCode) continue;
+    if (inquiry) {
+      if (d.course === aEntry.course) set.add(d.tcode);          // 同一探究/IPSS 區塊
+    } else if (aEntry.klass && d.klass === aEntry.klass) {
+      set.add(d.tcode);                                          // 一般雙師同班同節
+    }
   }
   return set;
 }
@@ -2461,7 +2469,7 @@ function renderTrianglePickB(panel) {
   const ls = state.leaveSlot;
   const aE = getEntry(meCode(), ls.day, ls.period);
   // 排除「協同上課」的老師：探究／IPSS 等雙師同上一班，那位不是可指定的 B
-  const coTeachers = coTeacherCodesAt(aE.klass, ls.day, ls.period, meCode());
+  const coTeachers = coTeacherCodesAt(aE, ls.day, ls.period, meCode());
   const busy = TEACHERS.filter(tt => tt.code !== meCode() && isOccupied(tt.code, ls.day, ls.period) && !coTeachers.has(tt.code));
 
   let html = '<div id="panel-status">';
