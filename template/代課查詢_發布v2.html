@@ -312,6 +312,13 @@
   }
   .lang-switch button.active { background: var(--primary); color: #fff; }
 
+  /* 標題列的「說明」與「中／EN」縮到與「資料版本」同級，質感一致、不搶版面 */
+  h1 .help-btn { font-size: .5em; color: var(--muted); padding: .2em .45em; vertical-align: middle; }
+  h1 .help-btn:hover { background: #f1f5f9; border-color: #e2e8f0; }
+  h1 .lang-switch { margin-left: .45em; vertical-align: middle; border-color: #cbd5e1; }
+  h1 .lang-switch button { font-size: .5em; padding: .25em .6em; color: var(--muted); }
+  h1 .lang-switch button.active { background: #64748b; color: #fff; }
+
   /* 選了人選後降噪：聚焦下一步、其餘轉灰（第5點） */
   #panel.partner-mode .panel-title span { color: #9ca3af !important; }
   /* 說明引導整行轉灰（含（導師）紅字、★ 綠字） */
