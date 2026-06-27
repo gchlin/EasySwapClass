@@ -449,11 +449,16 @@
 <section id="office-section" style="display:none">
   <div class="sec-head">
     <h2 data-i18n="officeTitle">5. 教務處參考</h2>
-    <span class="sec-note" data-i18n="officeNote">（三角調異動總表，黑框、可一起截圖給教務處）</span>
+    <span class="sec-note" data-i18n="officeNote">（每列只有兩位老師：誰代誰、誰與誰調課，方便出通知單）</span>
+  </div>
+  <pre id="office-list" style="background:#f9fafb; border:1px solid var(--border); padding:0.6em 0.8em; border-radius:4px; margin:0.4em 0; white-space:pre-wrap; word-break:break-word; font-size:0.92em; line-height:1.7; font-family:inherit;"></pre>
+  <div style="margin:0.4em 0">
+    <button class="primary" id="office-copy" style="padding:0.5em 1em" data-i18n="officeCopy">📋 複製清單</button>
+    <span id="office-copy-fb" style="margin-left:0.6em; font-size:0.9em; display:none"></span>
   </div>
   <div id="office-tables"></div>
-  <div style="margin:0.4em 0">
-    <button class="primary" id="office-screenshot" style="padding:0.5em 1em" data-i18n="officeScreenshot">📸 截圖（教務處整理）</button>
+  <div id="office-shot-row" style="margin:0.4em 0">
+    <button class="primary" id="office-screenshot" style="padding:0.5em 1em" data-i18n="officeScreenshot">📸 截圖（異動總表）</button>
     <span id="office-fb" style="margin-left:0.6em; font-size:0.9em; display:none"></span>
   </div>
 </section>
@@ -533,8 +538,9 @@ const STRINGS = {
     sec4Title: "4. 自己的課表",
     selfScreenshot: "📸 截圖（自己課表）",
     officeTitle: "5. 教務處參考",
-    officeNote: "（三角調異動總表，黑框、可一起截圖給教務處）",
-    officeScreenshot: "📸 截圖（教務處整理）",
+    officeNote: "（每列只有兩位老師：誰代誰、誰與誰調課，方便出通知單）",
+    officeCopy: "📋 複製清單",
+    officeScreenshot: "📸 截圖（異動總表）",
     footerIssue: "用起來有問題？",
     modalSub: '這個程式只能幫忙對課表找時段，但不知道其他調代課規則。<br>This tool only matches schedules to find slots; it doesn\'t know other substitution rules.',
     modalOk: "我知道了 / Got it",
@@ -682,8 +688,9 @@ const STRINGS = {
     sec4Title: "4. My own schedule",
     selfScreenshot: "📸 Screenshot (my schedule)",
     officeTitle: "5. Office reference",
-    officeNote: "(triangle-swap change tables, black border, screenshot together for the office)",
-    officeScreenshot: "📸 Screenshot (office tables)",
+    officeNote: "(each line = two teachers: who subs whom, who swaps with whom — ready for notices)",
+    officeCopy: "📋 Copy list",
+    officeScreenshot: "📸 Screenshot (change tables)",
     footerIssue: "Having trouble?",
     modalSub: '這個程式只能幫忙對課表找時段，但不知道其他調代課規則。<br>This tool only matches schedules to find slots; it doesn\'t know other substitution rules.',
     modalOk: "我知道了 / Got it",
@@ -1941,22 +1948,102 @@ function doShotTriangle(id) {
   captureTable(card, fname, (msg, ok) => showFb(id, msg, ok));
 }
 
+// 教務處原子列：把所有已確認（一般代/調 + 三角調）拆成「每列只有兩位老師」的事件
+//   sub  = 「X 代 Y 的課」      swap = 「X 與 Y 調課」（兩節對調）
+function officeRows() {
+  const rows = [];
+  const meName = me().name;
+  for (const c of state.confirmed) {
+    if (c.type === "sub") {
+      const e = getEntry(meCode(), c.day, c.period);
+      rows.push({ kind: "sub", day: c.day, period: c.period, course: e.course, klass: e.klass, orig: meName, cover: teacherInfo(c.partnerCode).name });
+    } else if (c.type === "swap") {
+      const e = getEntry(meCode(), c.day, c.period);
+      const pe = getEntry(c.partnerCode, c.swapDay, c.swapPeriod);
+      const pN = teacherInfo(c.partnerCode).name;
+      rows.push({ kind: "swap", t1: meName, t2: pN,
+        a: { day: c.day, period: c.period, course: e.course, klass: e.klass, owner: meName, to: pN },
+        b: { day: c.swapDay, period: c.swapPeriod, course: pe.course, klass: pe.klass, owner: pN, to: meName } });
+    } else if (c.type === "triangle") {
+      const aN = teacherInfo(c.aCode).name, bN = teacherInfo(c.bCode).name, cN = teacherInfo(c.cCode).name;
+      const aE = getEntry(c.aCode, c.slot.day, c.slot.period), bE = getEntry(c.bCode, c.slot.day, c.slot.period);
+      rows.push({ kind: "sub", day: c.slot.day, period: c.slot.period, course: aE.course, klass: aE.klass, orig: aN, cover: bN });
+      if (c.legType === "sub") {
+        rows.push({ kind: "sub", day: c.slot.day, period: c.slot.period, course: bE.course, klass: bE.klass, orig: bN, cover: cN });
+      } else {
+        const swE = getEntry(c.cCode, c.swapDay, c.swapPeriod);
+        rows.push({ kind: "swap", t1: bN, t2: cN,
+          a: { day: c.slot.day, period: c.slot.period, course: bE.course, klass: bE.klass, owner: bN, to: cN },
+          b: { day: c.swapDay, period: c.swapPeriod, course: swE.course, klass: swE.klass, owner: cN, to: bN } });
+      }
+    }
+  }
+  return rows;
+}
+function generateOfficeList() {
+  const dates = getWeekDates(pickWeekMode());
+  const dstr = (d) => dates ? `${dates[d-1].getMonth()+1}/${dates[d-1].getDate()}(${DAY_NAMES[d]})` : `星期${DAY_NAMES[d]}`;
+  const rows = officeRows();
+  const subs = rows.filter(r => r.kind === "sub");
+  const swaps = rows.filter(r => r.kind === "swap");
+  const kz = (k) => k ? ` ${k}班` : "";
+  const out = ["調代課通知清單（教務處）"];
+  let n = 0;
+  if (subs.length) {
+    out.push("", "【代課】誰代誰的課");
+    for (const r of subs) {
+      n++;
+      out.push(`${n}. ${dstr(r.day)} 第${r.period}節　${r.course}${kz(r.klass)}　原任課 ${r.orig} → 由 ${r.cover} 代課`);
+    }
+  }
+  if (swaps.length) {
+    out.push("", "【調課】誰與誰對調");
+    for (const r of swaps) {
+      n++;
+      out.push(`${n}. ${r.t1} ⇄ ${r.t2}`);
+      out.push(`　　${dstr(r.a.day)} 第${r.a.period}節 ${r.a.course}${kz(r.a.klass)}（原 ${r.a.owner}）改由 ${r.a.to} 上`);
+      out.push(`　　${dstr(r.b.day)} 第${r.b.period}節 ${r.b.course}${kz(r.b.klass)}（原 ${r.b.owner}）改由 ${r.b.to} 上`);
+    }
+  }
+  return out.join("\n");
+}
+
 // 教務處參考：把所有三角調的異動總表集中一區（黑框），可一次截圖
 function renderOffice() {
   const sec = document.getElementById("office-section");
   const div = document.getElementById("office-tables");
+  const listEl = document.getElementById("office-list");
   if (!sec || !div) return;
-  const tris = state.confirmed.filter(c => c.type === "triangle");
-  if (tris.length === 0) { sec.style.display = "none"; div.innerHTML = ""; return; }
+  // 教務處清單包含「所有」已確認（一般代/調 + 三角調）；只要有任一筆就顯示
+  if (state.confirmed.length === 0) { sec.style.display = "none"; div.innerHTML = ""; if (listEl) listEl.textContent = ""; return; }
   sec.style.display = "block";
+
+  // 文字清單（每列兩位老師），給教務處出通知單
+  if (listEl) listEl.textContent = generateOfficeList();
+  const copyBtn = document.getElementById("office-copy");
+  if (copyBtn) copyBtn.onclick = doCopyOfficeList;
+
+  // 三角調異動總表（黑框視覺），只有三角調時才有
+  const tris = state.confirmed.filter(c => c.type === "triangle");
   let html = "";
   for (const tri of tris) {
     const aName = teacherInfo(tri.aCode).name, bName = teacherInfo(tri.bCode).name, cName = teacherInfo(tri.cCode).name;
     html += `<div class="office-block"><div class="office-cap">🔺 ${aName} ← ${bName} ← ${cName}</div>${generateTriangleMatrix(tri)}</div>`;
   }
   div.innerHTML = html;
+  document.getElementById("office-shot-row").style.display = tris.length ? "" : "none";
   const btn = document.getElementById("office-screenshot");
   if (btn) btn.onclick = doShotOffice;
+}
+async function doCopyOfficeList() {
+  const ok = await copyToClipboard(generateOfficeList());
+  const el = document.getElementById("office-copy-fb");
+  if (el) {
+    el.textContent = ok ? t("fbCopied") : t("fbCopyFail");
+    el.style.display = "inline";
+    el.style.color = ok ? "var(--swap)" : "#dc2626";
+    setTimeout(() => { el.style.display = "none"; }, 2500);
+  }
 }
 function doShotOffice() {
   const div = document.getElementById("office-tables");
