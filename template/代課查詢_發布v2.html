@@ -605,6 +605,7 @@ const STRINGS = {
     grpOther: "其他科別選擇",
     grpOtherIb: "IB · 其他科別選擇",
     candHomeroom: "（導師）",
+    candSubOnly: "僅可代課",
     emptyNone: "無",
     emptyBusy: "都在上課",
     emptyBusyKlass: "這班的老師這節都在上課",
@@ -624,7 +625,7 @@ const STRINGS = {
     subLabel: "要代課",
     subInstr: "在下方↓點「確認代課」",
     swapAlsoHint: "也可改調課：點上方↑亮起的時段（一次一節）",
-    partnerNoSwap: (n) => `（${n} 老師 沒有空堂可調，只能請他代課）`,
+    partnerNoSwap: (n) => `（${n} 老師）沒有可對調的時段，只能代課 — 在下方↓點「確認代課」`,
     confirmBoth: "確認代課（兩節）",
     confirmThis: "確認代課（這節）",
     confirmSub: "確認代課",
@@ -749,6 +750,7 @@ const STRINGS = {
     grpOther: "Other subjects",
     grpOtherIb: "IB · Other subjects",
     candHomeroom: "(Homeroom)",
+    candSubOnly: "SUB ONLY",
     emptyNone: "None",
     emptyBusy: "All teaching now",
     emptyBusyKlass: "All of this class's teachers are teaching now",
@@ -767,7 +769,7 @@ const STRINGS = {
     subLabel: "To sub",
     subInstr: 'click "Confirm sub" below ↓',
     swapAlsoHint: "Or swap instead: click a highlighted slot above ↑ (one period at a time)",
-    partnerNoSwap: (n) => `(${n} has no free slot to swap; can only be asked to sub)`,
+    partnerNoSwap: (n) => `(${n}: no swappable slot for this class — sub only, click "Confirm sub" below ↓)`,
     confirmBoth: "Confirm sub (both periods)",
     confirmThis: "Confirm sub (this period)",
     confirmSub: "Confirm sub",
@@ -2208,10 +2210,11 @@ function getCandidateGroups(leaveSlot) {
       });
     }
     const ibSameSub = free.filter(t => t.isIB && isSame(t));
-    const ibSameKlass = free.filter(t => t.isIB && !isSame(t) && isSameClass(t) && canSwapMyKlass(t.code));
-    const ibSameKlassCodes = new Set(ibSameKlass.map(t => t.code));
+    const ibSameKlassAll = free.filter(t => t.isIB && !isSame(t) && isSameClass(t));
+    const ibSameKlassCodes = new Set(ibSameKlassAll.map(t => t.code));
+    const ibSubOnlyCodes = new Set(ibSameKlassAll.filter(t => !canSwapMyKlass(t.code)).map(t => t.code));
     const ibOther = free.filter(t => t.isIB && !isSame(t) && !ibSameKlassCodes.has(t.code));
-    if (myKlass) groups.push({ label: t("ibPrefix") + sameKlassLabel, priority: 1, teachers: ibSameKlass, kind: "sameKlass" });
+    if (myKlass) groups.push({ label: t("ibPrefix") + sameKlassLabel, priority: 1, teachers: ibSameKlassAll, kind: "sameKlass", subOnlyCodes: ibSubOnlyCodes });
     groups.push({ label: t("ibPrefix") + sameSubLabel, priority: 2, teachers: ibSameSub, kind: "sameSub", starDetail });
     groups.push({ label: t("grpOtherIb"), priority: 3, teachers: ibOther, splitByDomain: true });
     if (!ibOnly) {
@@ -2237,10 +2240,11 @@ function getCandidateGroups(leaveSlot) {
     });
   }
   const sameSub = free.filter(isSame);
-  const sameKlassNotSub = free.filter(t => !isSame(t) && isSameClass(t) && canSwapMyKlass(t.code));
-  const sameKlassCodes = new Set(sameKlassNotSub.map(t => t.code));
+  const sameKlassAll = free.filter(t => !isSame(t) && isSameClass(t));
+  const sameKlassCodes = new Set(sameKlassAll.map(t => t.code));
+  const subOnlyCodes = new Set(sameKlassAll.filter(t => !canSwapMyKlass(t.code)).map(t => t.code));
   const other = free.filter(t => !isSame(t) && !sameKlassCodes.has(t.code));
-  if (myKlass) groups.push({ label: sameKlassLabel, priority: 1, teachers: sameKlassNotSub, kind: "sameKlass" });
+  if (myKlass) groups.push({ label: sameKlassLabel, priority: 1, teachers: sameKlassAll, kind: "sameKlass", subOnlyCodes });
   groups.push({ label: sameSubLabel, priority: 2, teachers: sameSub, kind: "sameSub", starDetail });
   groups.push({ label: t("grpOther"), priority: 3, teachers: other, splitByDomain: true });
   return groups;
@@ -2260,7 +2264,7 @@ function sortCandidates(arr, leaveKlass, leaveDetail) {
   });
 }
 
-function candBtn(tt, priority, leaveKlass, leaveDetail) {
+function candBtn(tt, priority, leaveKlass, leaveDetail, subOnly = false) {
   // 注意：參數不可命名為 t，會遮蔽全域 i18n 的 t()
   const active = state.partnerCode === tt.code;
   const isHomeroom = leaveKlass && tt.homeroom === leaveKlass;
@@ -2268,9 +2272,11 @@ function candBtn(tt, priority, leaveKlass, leaveDetail) {
   const hrTag = isHomeroom ? `<span style="color:#dc2626; font-weight:bold; margin-left:0.15em;">${t("candHomeroom")}</span>` : '';
   // 同細科加 ★ 標記
   const dtTag = (isSameDetail && !isHomeroom) ? `<span style="color:var(--swap); margin-left:0.15em;">★</span>` : '';
+  // 同班但無可對調時段：灰字「僅可代課」提示
+  const subOnlyTag = subOnly ? `<span style="color:#9ca3af; font-size:0.72em; margin-left:0.3em;">${t("candSubOnly")}</span>` : '';
   // 括弧內：中文介面顯示細科目全名（譬如「物理科」）；English 介面用科目英文簡寫
   const labelInParen = LANG === "en" ? t("subjLabel", tt.subject) : (tt.detail ? fullDet(tt.detail) : fullSub(tt.subject));
-  return `<button class="cand-btn pri-${priority}${active ? ' active' : ''}" data-pcode="${tt.code}"><strong style="font-weight:700">${teacherDisplayName(tt)}</strong>${hrTag}${dtTag}<span style="font-size:0.75em; opacity:0.68; margin-left:0.25em">${labelInParen}</span></button>`;
+  return `<button class="cand-btn pri-${priority}${active ? ' active' : ''}" data-pcode="${tt.code}"><strong style="font-weight:700">${teacherDisplayName(tt)}</strong>${hrTag}${dtTag}${subOnlyTag}<span style="font-size:0.75em; opacity:0.68; margin-left:0.25em">${labelInParen}</span></button>`;
 }
 
 function groupSubtitle(g) {
@@ -2326,8 +2332,14 @@ function renderGroups(groups, leaveKlass, leaveDetail) {
           emptyMsg = t("emptyBusySub", fullSub(meInfo.subject));
         }
         html += `<span style="color:var(--muted); font-size:0.9em">${emptyMsg}</span>`;
+      } else if (g.kind === "sameKlass" && g.subOnlyCodes?.size > 0) {
+        // 可調課者優先，僅代課者排後並附灰字提示
+        const canSwap = sorted.filter(tk => !g.subOnlyCodes.has(tk.code));
+        const subOnlyArr = sorted.filter(tk => g.subOnlyCodes.has(tk.code));
+        for (const tk of canSwap) html += candBtn(tk, g.priority, leaveKlass, leaveDetail, false);
+        for (const tk of subOnlyArr) html += candBtn(tk, g.priority, leaveKlass, leaveDetail, true);
       } else {
-        for (const t of sorted) html += candBtn(t, g.priority, leaveKlass, leaveDetail);
+        for (const tk of sorted) html += candBtn(tk, g.priority, leaveKlass, leaveDetail, false);
       }
     }
 
