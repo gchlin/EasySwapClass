@@ -71,6 +71,7 @@ def build_data_and_teachers(rows, roster=None):
                 "subject": t["subject"],
                 "detail": t["detail"],
                 "isIB": t["isIB"],
+                "isBilingual": t.get("isBilingual", False),
                 "homeroom": t["homeroom"],
                 "strokes": name_strokes(t["name"]),
             }
@@ -85,6 +86,7 @@ def build_data_and_teachers(rows, roster=None):
             "subject": r["主授科目"],
             "detail": r["細科目"],
             "isIB": r["教師類別"] == "IB教師",
+            "isBilingual": False,   # 舊版本 CSV 沒這個欄位
             "homeroom": r["導師班級"],
             "strokes": name_strokes(r["教師"]),
         }

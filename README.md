@@ -260,7 +260,9 @@ python scripts/build_strokes.py
 | 教師類別（IB / 普通班）判斷 | `scripts/extract_school.py` |
 | 職稱括號 → 主授科目（POST_TAG_TO_SUBJECT） | `scripts/extract_school.py`；優先序：代號 prefix ＞ 職稱括號 ＞ 課名投票 |
 | 領域時間偵測（課名以「領域」結尾，排除「領域課程」）→ 整格排除出 CSV、視同空堂 | `scripts/extract_school.py` |
-| JS 端 IB 課程偵測（決定走幾階優先順序） | `template/代課查詢_發布.html` 的 `isIbCourse()`（課名不含中文＝IB） |
+| JS 端 IB 課程偵測（決定走哪一套優先順序） | `template/代課查詢_發布.html` 的 `isIbCourse()`（課名不含中文＝IB） |
+| IB 課程候選四階排序（依細科目）＋鐘點標記 | `template/代課查詢_發布.html` 的 `getCandidateGroups()` ibLeave 分支、`rateTagHtml()` |
+| 雙語教師判定（IB 代課鐘點用） | `scripts/extract_school.py` 的 `is_bilingual_post()`（PDF 職稱含「雙語」） |
 | JS 端連堂課偵測（`INQUIRY_NAMES` 白名單 + 規則 `含「-探究」`） | `template/代課查詢_發布.html` 的 `isInquiryCourse()`；候選清單見 [連堂課程_待確認清單.md](連堂課程_待確認清單.md) |
 | JS 端藍框「只能代課」（多元／自主／團體活動） | `template/代課查詢_發布.html` 的 `isSubOnlyCourse()` |
 | JS 端 ⚠ 提示（行政會議／團體活動時間） | `template/代課查詢_發布.html` 的 `isNoticeCourse()` |
@@ -325,6 +327,7 @@ pip install pdfplumber
 ```powershell
 node tests/triangle.test.js   # 三角調 / 協同排除（需 template/data.js、template/en_name.js）
 node tests/rules.test.js      # 課程性質規則（需 versions/<目前版本>/代課查詢_單檔.html）
+node tests/ib.test.js         # IB 四階候選排序 + 鐘點標記（同上）
 ```
 
 改動 `template/代課查詢_發布.html` 或 `scripts/extract_school.py` 的分類 / 規則後請務必跑一次。

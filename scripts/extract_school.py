@@ -57,6 +57,11 @@ POST_TAG_TO_SUBJECT = {
 }
 
 
+def is_bilingual_post(post_str):
+    """職稱是否標示雙語（如「教師(生)+雙語」）。IB 課程代課鐘點計算需要。"""
+    return bool(post_str) and "雙語" in post_str
+
+
 def post_subject(post_str):
     """職務字串 → 主授科目；括號內容不在對照表（如「教練」「213 導師+體召」）回傳 None。"""
     if not post_str:
@@ -82,15 +87,17 @@ def classify_course_subject(name):
     彈性課/行政/IB 工具課回傳 None（不計入主授判定）。"""
     if not name:
         return None
-    if "TOKCh" in name:
+    if "TOKCh" in name or "TOK Ch" in name:
         return "國"
-    if "TOKEng" in name:
+    if "TOKEng" in name or "TOK Eng" in name:
         return "英"
     # 社（早期判斷以免被「探究」或「資訊」搶走）
     if any(k in name for k in [
         "歷史", "地理", "公民", "公社", "民主政治", "法律",
         "生涯規劃", "生命教育", "空間資訊", "科技環", "探究與實",
         "BM", "Geo", "Econ", "Psy",
+        # 附錄 B 確認：這些原本沒被任何關鍵字命中，落到「其他」
+        "現代社會與經濟", "社會環境議題", "走讀臺灣",
     ]):
         return "社"
     # 二外（早期判斷：避免「韓語高一多元」這類 flex 把純第二外語老師吞掉）
@@ -118,9 +125,12 @@ def classify_course_subject(name):
     if any(k in name for k in [
         "國語文", "國寫", "國際時事", "各類文學", "語文表達", "新版文學",
         "ChineseA", "Chinese", "Mandarin", "ChiBS",
+        "國文充補",                                    # 附錄 B 確認
     ]):
         return "國"
     if any(k in name for k in ["英文", "英語", "English"]):
+        return "英"
+    if name == "Wri" or name.startswith("Wri "):    # 附錄 B 確認：E62 的 Writing
         return "英"
     if any(k in name for k in [
         "數學", "數甲", "數乙", "數 A", "數A", "數(輔",
@@ -135,19 +145,30 @@ def classify_course_subject(name):
         return "自"
     if name == "ES" or name.startswith("ES "):
         return "自"
-    # 體（體育/PE/健護/運動/體育班專項/SEHSSL/安全教育）
+    if name == "ESS SL" or name.startswith("ESS "):   # 附錄 B 確認：環境系統與社會
+        return "自"
+    # 體（體育/PE/健護/運動/體育班專項/SEHS SL/安全教育/全民國防）
     if any(k in name for k in [
         "體育", "PE", "健護", "運動",
         "專項技術", "專項體能", "SEHSSL", "安全教育",
+        # 附錄 B 確認：健康與護理／全民國防教育／SEHS SL 原本落到「其他」
+        "健康", "全民國防", "SEHS",
     ]):
         return "體"
     # 藝（音樂/美術/藝術生活/新媒體藝/生科/資訊科技/家政/VA/PA/AW）
     if any(k in name for k in [
         "音樂", "美術", "藝術", "新媒體", "生科", "資訊", "家政",
         "VA", "PA", "AW",
+        # 附錄 B 確認：原本落到「其他」的生活科技／設計／家政／資訊類
+        "生活科技", "工程設計", "基本設計", "創新生活與家庭",
+        "程式設計", "Computer Sci",
     ]):
         return "藝"
-    # 其他（家政/全民國防/CP/...）
+    if name == "CS":                                  # 附錄 B 確認：IB 電腦科學
+        return "藝"
+    # 其他：附錄 B 中「不確定、先保留」的課名會落在這裡
+    #   臺灣手語（本土語？二外？）、WG／OH／TSP（E62 的私人縮寫）、CP
+    # 這些老師都另有課程撐住科別，不影響下拉選單；只影響「同科優先」排序的精細度。
     return "其他"
 
 
@@ -158,13 +179,18 @@ def classify_course_detail(name):
     if not name:
         return None
     # IB 特殊（先處理避免 substring 衝突）
-    if "TOKCh" in name:
+    if "TOKCh" in name or "TOK Ch" in name:
         return "國文"
-    if "TOKEng" in name:
+    if "TOKEng" in name or "TOK Eng" in name:
         return "英文"
     # 自
     # 探究 / IPSS 都是協同教學（物理+地科 / 化學+生物 / 物化生 三合一），各老師教自己的學科
     # → 回傳 None，讓老師的細科目由其他課程決定（譬如選修物理 / 選修生物）
+    # 114-2 的「物理地科探究」「化學生物探究」「IPSS」課名本身橫跨兩三個學科，
+    # 無從判斷該位老師教的是哪一科 → 回傳 None，由其他課程決定。
+    # 115-1 改名後的「化學-探究A」「物理-探究B」課名已指明單一學科，讓它決定即可
+    # （N09 全學期只教化學-探究A，設成 None 會害他沒有細科目）；
+    # 協同的另一位老師若本科不同，會被自己其他課程的票數蓋過。
     if "物理地科探究" in name or "化學生物探究" in name or "IPSS" in name:
         return None
     if any(k in name for k in ["物理", "Phys"]):
@@ -250,6 +276,22 @@ def classify_course_detail(name):
         return "英文"
     if any(k in name for k in ["數學", "數甲", "數乙", "數 A", "數A", "數(輔", "Math"]):
         return "數學"
+    # 附錄 B 確認的細科目
+    if any(k in name for k in ["健康", "健護"]):
+        return "健護"
+    if "全民國防" in name:
+        return "全民國防"
+    if any(k in name for k in ["生活科技", "工程設計"]):
+        return "生科"
+    if any(k in name for k in ["程式設計", "Computer Sci"]) or name == "CS":
+        return "資訊"
+    if "創新生活與家庭" in name:
+        return "家政"
+    # 基本設計不判細科（A09 兼美術/VA，讓細科由「美術」決定）
+    if name == "Wri" or name.startswith("Wri "):
+        return "英文"
+    if name == "ESS SL" or name.startswith("ESS "):
+        return "地科"
     return None
 
 
@@ -441,6 +483,7 @@ def main(version, ryu_only=False):
                 "subject": main_subject[c],
                 "detail": detail[c],
                 "isIB": c in ib_codes,
+                "isBilingual": is_bilingual_post(teacher_post.get(c, "")),
                 "homeroom": homeroom[c],
             }
             for c in sorted(teacher_set)
