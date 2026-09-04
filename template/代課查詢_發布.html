@@ -272,7 +272,6 @@
   .lg-conf-in { background: #d1fae5; border-color: var(--swap); color: #064e3b; }
   .lg-inquiry { background: white; border: 2px solid #7c3aed; color: #5b21b6; }
   .lg-subonly { background: white; border: 2px solid #3b7fed; color: #1d4ed8; }
-  .lg-ryu { background: white; border: 2px solid #a8a29e; color: #57534e; }
   .lg-notice { background: #fffbeb; border-color: #d97706; color: #92400e; }
   /* IB 課程鐘點提醒（純文字，不針對個別老師下判斷） */
   .ib-rate-note {
@@ -620,7 +619,6 @@ const STRINGS = {
     lgConfIn: "✓ 我代他的時段",
     lgInquiry: "紫框表示連堂課（考慮盡量同一個老師）",
     lgSubOnly: "藍框表示不能調課、只能代課",
-    lgRyu: "灰框表示領域時間（視同空堂，可被調進來）",
     lgNotice: "⚠ 行政會議／團體活動時間（可調代，請自行確認）",
 
     // 自己／對方課表
@@ -780,7 +778,6 @@ const STRINGS = {
     lgConfIn: "✓ I cover their slot",
     lgInquiry: "Purple border = consecutive periods (prefer the same teacher)",
     lgSubOnly: "Blue border = sub only, no swap",
-    lgRyu: "Grey border = department meeting time (treated as a free slot)",
     lgNotice: "⚠ Admin meeting / group activity (swap or sub allowed — please confirm)",
 
     selfNoNeed: (n) => `⨯ Off — ${n} covers`,
@@ -1557,15 +1554,6 @@ function renderLegend() {
     }
   }
   if (hasInquiry) items.push(`<span class="lg-inquiry">${t("lgInquiry")}</span>`);
-
-  // 灰框提示：使用者有領域時間才顯示
-  let hasRyu = false;
-  outerR: for (let d = 1; d <= 5; d++) {
-    for (let p = 1; p <= 7; p++) {
-      if (!getEntry(tcode, d, p) && ryuAt(tcode, d, p)) { hasRyu = true; break outerR; }
-    }
-  }
-  if (hasRyu) items.push(`<span class="lg-ryu">${t("lgRyu")}</span>`);
 
   // ⚠ 提示：使用者課表中有行政會議／團體活動時間才顯示
   let hasNotice = false;
