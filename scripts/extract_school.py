@@ -57,11 +57,6 @@ POST_TAG_TO_SUBJECT = {
 }
 
 
-def is_bilingual_post(post_str):
-    """職稱是否標示雙語（如「教師(生)+雙語」）。IB 課程代課鐘點計算需要。"""
-    return bool(post_str) and "雙語" in post_str
-
-
 def post_subject(post_str):
     """職務字串 → 主授科目；括號內容不在對照表（如「教練」「213 導師+體召」）回傳 None。"""
     if not post_str:
@@ -483,7 +478,6 @@ def main(version, ryu_only=False):
                 "subject": main_subject[c],
                 "detail": detail[c],
                 "isIB": c in ib_codes,
-                "isBilingual": is_bilingual_post(teacher_post.get(c, "")),
                 "homeroom": homeroom[c],
             }
             for c in sorted(teacher_set)

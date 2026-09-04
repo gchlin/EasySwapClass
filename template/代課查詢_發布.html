@@ -274,14 +274,12 @@
   .lg-subonly { background: white; border: 2px solid #3b7fed; color: #1d4ed8; }
   .lg-ryu { background: white; border: 2px solid #a8a29e; color: #57534e; }
   .lg-notice { background: #fffbeb; border-color: #d97706; color: #92400e; }
-  /* IB 課程代課鐘點標記 */
-  .rate-tag {
-    font-size: 0.68em; font-weight: 700; margin-left: 0.35em;
-    padding: 0.05em 0.35em; border-radius: 3px; vertical-align: 0.1em;
-    white-space: nowrap;
+  /* IB 課程鐘點提醒（純文字，不針對個別老師下判斷） */
+  .ib-rate-note {
+    background: #fff7ed; border: 1px solid #fdba74; border-radius: 5px;
+    padding: 0.45em 0.7em; margin: 0.5em 0; color: #9a3412;
+    font-size: 0.85em; line-height: 1.6;
   }
-  .rate-2x { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
-  .rate-1x { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
   /* ⓘ 說明 折疊式按鈕 */
   .help-btn {
@@ -599,7 +597,7 @@ const STRINGS = {
     officeScreenshot: "📸 截圖（異動總表）",
     footerIssue: "用起來有問題？",
     rulesBtn: "ⓘ 判斷規則說明（哪些課不能調、什麼是連堂、會議怎麼算）",
-        rulesBody: "<h4>先講最重要的一句</h4><p>這個程式<strong>只會比對課表找出「誰那節有空」</strong>。它不知道學校的行政規定、也不知道誰兼幾節。<strong>它給的是候選名單，不是決定。</strong></p><h4>一、課表上的框線</h4><table><tr><th>框線</th><th>意思</th><th>能調課</th><th>能代課</th></tr><tr><td class=\"rk\">沒有框</td><td>一般課程</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-inq\"></span>紫色粗框</td><td>連堂課（建議同一人代兩節，<strong>但不強制</strong>）</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-sub\"></span>藍色粗框</td><td>多元／自主／團體活動時間</td><td>❌</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-ryu\"></span>灰色細框</td><td>領域時間（其實是空堂）</td><td>—</td><td>—</td></tr><tr><td class=\"rk\">⚠ 記號</td><td>行政會議／團體活動時間（不是一般授課）</td><td>看框線</td><td>✅</td></tr></table><h4>二、哪些課只能請人代、不能跟人對調（藍框）</h4><ul><li><strong>多元選修</strong>（課名有「多元」）——跑班課程，學生是跨班來的，換到別的時段學生根本不會出現</li><li><strong>自主學習</strong>（課名有「自主」）——同樣是全校固定時段</li><li><strong>團體活動時間</strong>（週五第 5、6 節）——全校同時進行，想跟誰對調，那位老師那時也在帶團體活動</li></ul><p>點到這種格子時，程式會直接關掉「調課」，只留「找人代課」。</p><p>但反過來，<strong>別人的</strong>多元／自主／團體活動時段，程式目前<strong>還是會</strong>列成可以跟你對調的選項——程式只檢查你自己請假的那一節，對方那節能不能動由對方判斷。</p><h4>三、什麼是「連堂」（紫框）</h4><p><strong>連堂不是強制。</strong>標成連堂之後，你原本能做的事一件都沒少：</p><ul><li>✅ 只請人代第一節，第二節自己上</li><li>✅ 只調第一節，第二節不動</li><li>✅ 兩節分別找兩位不同老師代</li><li>✅ 兩節找同一位老師代完</li></ul><p>標成連堂<strong>只是多做兩件事</strong>：候選名單最上面多一個「<strong>兩節都能代／調的老師</strong>」群組（這些人兩節都有空，可以一次接完）；點下去時面板多一行提醒。所以列進連堂名單只有好處、沒有副作用。</p><p>目前判定為連堂的有 <strong>3 種</strong>：化學-探究A、物理-探究B、生活科技。課表上「剛好相鄰兩節同一班」的組合其實有 76 種，哪些是真的必須連著上，程式沒辦法自己知道——請洽教學組確認。</p><h4>四、IB 課程的候選順序不一樣</h4><p>點到的那一節如果是 <strong>IB 課程</strong>（課名沒有中文字，例如 <code>PE</code>、<code>Math AA SL</code>、<code>Chi B SL</code>），候選名單改用<strong>子科目</strong>排序 —— 也就是實際教的學科（物理科、體育科、英文科…），而不是主授科目。</p><table><tr><th>順位</th><th>誰</th><th>鐘點</th></tr><tr><td class=\"rk\">1</td><td>同子科的 <strong>IB 教師</strong></td><td><span class=\"rate-tag rate-2x\">2倍鐘點</span></td></tr><tr><td class=\"rk\">2</td><td>同子科的老師（非 IB）</td><td>雙語 <span class=\"rate-tag rate-2x\">2倍鐘點</span>／非雙語 <span class=\"rate-tag rate-1x\">原鐘點</span></td></tr><tr><td class=\"rk\">3</td><td>其他 IB 教師</td><td>原鐘點</td></tr><tr><td class=\"rk\">4</td><td>其他老師</td><td>原鐘點</td></tr></table><p>候選按鈕上會直接標記，不用另外查表；點下去時面板也會出現一行提醒。</p><ul><li>「雙語」是從課表 PDF 的職稱標記抓的（例如「教師(生)+雙語」）</li><li>一般（非 IB）課程的順序完全沒變，仍是「同班 → 同科 → 其他科」</li><li>IB 課程<strong>不另外列「同班老師」群組</strong> —— 同班的老師會出現在他所屬的那一順位裡</li><li>少數老師的子科目在課表上判不出來，這種情況自動退回用主授科目比對，順位不會變空</li></ul><h4>五、會議／領域時間／團體活動怎麼算</h4><table><tr><th>類別</th><th>課表上長怎樣</th><th>我請假時</th><th>別人能調進來嗎</th></tr><tr><td class=\"rk\">領域時間<br><span style=\"font-weight:400;color:#78716c\">藝能／社會／國文／自然／英文／數學／二外領域</span></td><td><span class=\"swatch sw-ryu\"></span>灰框空堂＋淡字課名</td><td>不用處理（它不是課，不會出現在請假清單裡）</td><td>✅ 可以（程式把它當空堂）</td></tr><tr><td class=\"rk\">行政會議<br><span style=\"font-weight:400;color:#78716c\">週一第 1、2 節</span></td><td>有課＋⚠ 記號</td><td>可調、可代</td><td>✅ 可以</td></tr><tr><td class=\"rk\">團體活動時間<br><span style=\"font-weight:400;color:#78716c\">週五第 5、6 節</span></td><td><span class=\"swatch sw-sub\"></span>藍框＋⚠ 記號</td><td><strong>只能代</strong>，不能調</td><td>❌ 不行</td></tr></table><p>⚠ 記號的意思是：<em>這不是一般授課，原則上可以調課或代課，但請自行跟相關單位確認。</em></p><p><strong>領域時間要注意</strong>：同一科的老師領域時間通常是同一個時段，那兩節整科都在開會。程式不知道這件事，還是會把同科老師列成候選。灰框就是提醒你「這節其實有事」，要不要接受由你判斷。</p><h4>六、程式怎麼認課別</h4><p>看的是<strong>課程名稱裡的關鍵字</strong>，不是課號、不是老師：</p><table><tr><th>類別</th><th>關鍵字</th></tr><tr><td class=\"rk\">只能代課（藍框）</td><td>課名含「多元」、「自主」、「團體活動」</td></tr><tr><td class=\"rk\">連堂（紫框）</td><td>課名含「-探究」，或在確認過的白名單裡（目前：生活科技）</td></tr><tr><td class=\"rk\">領域時間（灰框）</td><td>課名<strong>以「領域」結尾</strong>（「領域課程」除外，那是真的有學生的課）</td></tr><tr><td class=\"rk\">行政會議（⚠）</td><td>課名含「行政會」</td></tr><tr><td class=\"rk\">IB 課程</td><td>課名<strong>完全沒有中文字</strong>（<code>PE</code>、<code>Math AA SL</code>…）</td></tr><tr><td class=\"rk\">雙語老師</td><td>PDF 職稱含「雙語」</td></tr></table><p>學校改課名，判斷就會跟著變。只要新課名還有這些關鍵字（例如「行政會報」改成「行政會議」、「團體活動」改成「團體活動時間」）程式照樣認得；若改成完全不同的詞（例如「領域時間」改叫「共同備課」），就要通知維護者改設定。</p><h4>七、程式不知道的事</h4><ul><li>同科老師的領域時間是同一個時段——那兩節整科都在開會，程式還是會把他們列成候選</li><li>對方的「只能代課」時段——程式只擋你自己那一邊</li><li>兼課節數、鐘點費、公假出差——完全不知道</li><li>課名看不懂的課（如 WG、OH、TSP、Wri）——「同科老師」推薦會不準</li></ul>",
+            rulesBody: "<h4>先講最重要的一句</h4><p>這個程式<strong>只會比對課表找出「誰那節有空」</strong>。它不知道學校的行政規定、也不知道誰兼幾節。<strong>它給的是候選名單，不是決定。</strong></p><h4>一、課表上的框線</h4><table><tr><th>框線</th><th>意思</th><th>能調課</th><th>能代課</th></tr><tr><td class=\"rk\">沒有框</td><td>一般課程</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-inq\"></span>紫色粗框</td><td>連堂課（建議同一人代兩節，<strong>但不強制</strong>）</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-sub\"></span>藍色粗框</td><td>多元／自主／團體活動時間</td><td>❌</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-ryu\"></span>灰色細框</td><td>領域時間（其實是空堂）</td><td>—</td><td>—</td></tr><tr><td class=\"rk\">⚠ 記號</td><td>行政會議／團體活動時間（不是一般授課）</td><td>看框線</td><td>✅</td></tr></table><h4>二、哪些課只能請人代、不能跟人對調（藍框）</h4><ul><li><strong>多元選修</strong>（課名有「多元」）——跑班課程，學生是跨班來的，換到別的時段學生根本不會出現</li><li><strong>自主學習</strong>（課名有「自主」）——同樣是全校固定時段</li><li><strong>團體活動時間</strong>（週五第 5、6 節）——全校同時進行，想跟誰對調，那位老師那時也在帶團體活動</li></ul><p>點到這種格子時，程式會直接關掉「調課」，只留「找人代課」。</p><p>但反過來，<strong>別人的</strong>多元／自主／團體活動時段，程式目前<strong>還是會</strong>列成可以跟你對調的選項——程式只檢查你自己請假的那一節，對方那節能不能動由對方判斷。</p><h4>三、什麼是「連堂」（紫框）</h4><p><strong>連堂不是強制。</strong>標成連堂之後，你原本能做的事一件都沒少：</p><ul><li>✅ 只請人代第一節，第二節自己上</li><li>✅ 只調第一節，第二節不動</li><li>✅ 兩節分別找兩位不同老師代</li><li>✅ 兩節找同一位老師代完</li></ul><p>標成連堂<strong>只是多做兩件事</strong>：候選名單最上面多一個「<strong>兩節都能代／調的老師</strong>」群組（這些人兩節都有空，可以一次接完）；點下去時面板多一行提醒。所以列進連堂名單只有好處、沒有副作用。</p><p>目前判定為連堂的有 <strong>3 種</strong>：化學-探究A、物理-探究B、生活科技。課表上「剛好相鄰兩節同一班」的組合其實有 76 種，哪些是真的必須連著上，程式沒辦法自己知道——請洽教學組確認。</p><h4>四、IB 課程的候選順序不一樣</h4><p>點到的那一節如果是 <strong>IB 課程</strong>（課名沒有中文字，例如 <code>PE</code>、<code>Math AA SL</code>、<code>Chi B SL</code>），候選名單的<strong>排列順序</strong>會改成：</p><table><tr><th>順位</th><th>誰</th></tr><tr><td class=\"rk\">1</td><td><strong>IB 教師</strong>，而且是同子科目（實際教的學科，如物理科、體育科）</td></tr><tr><td class=\"rk\">2</td><td><strong>IB 教師</strong>，其他科目</td></tr><tr><td class=\"rk\">3</td><td>其他老師</td></tr></table><p><strong>這只是排序，不是限制。</strong>所有有空的老師都還是會列出來，誰都可以代、可以調 —— 只是把比較適合的排在前面而已。</p><p><strong>鐘點提醒</strong>：代 IB 課程時，代課老師若為 <strong>IB 教師且以雙語授課</strong>，為 <strong>2 倍鐘點</strong>；非雙語授課、或非 IB 教師，則為原鐘點。</p><p>程式無從得知代課當下是不是雙語授課，所以<strong>不會針對個別老師標記鐘點</strong>，只在三個地方顯示上面那行提醒：選老師的面板、自己的課表、對方的課表。不是代 IB 課程就完全不出現。</p><ul><li>一般（非 IB）課程的順序完全沒變，仍是「同班 → 同科 → 其他科」</li><li>IB 課程<strong>不另外列「同班老師」群組</strong> —— 同班的老師會出現在他所屬的那一順位裡</li><li>少數老師的子科目在課表上判不出來，這種情況自動退回用主授科目比對</li></ul><h4>五、會議／領域時間／團體活動怎麼算</h4><table><tr><th>類別</th><th>課表上長怎樣</th><th>我請假時</th><th>別人能調進來嗎</th></tr><tr><td class=\"rk\">領域時間<br><span style=\"font-weight:400;color:#78716c\">藝能／社會／國文／自然／英文／數學／二外領域</span></td><td><span class=\"swatch sw-ryu\"></span>灰框空堂＋淡字課名</td><td>不用處理（它不是課，不會出現在請假清單裡）</td><td>✅ 可以（程式把它當空堂）</td></tr><tr><td class=\"rk\">行政會議<br><span style=\"font-weight:400;color:#78716c\">週一第 1、2 節</span></td><td>有課＋⚠ 記號</td><td>可調、可代</td><td>✅ 可以</td></tr><tr><td class=\"rk\">團體活動時間<br><span style=\"font-weight:400;color:#78716c\">週五第 5、6 節</span></td><td><span class=\"swatch sw-sub\"></span>藍框＋⚠ 記號</td><td><strong>只能代</strong>，不能調</td><td>❌ 不行</td></tr></table><p>⚠ 記號的意思是：<em>這不是一般授課，原則上可以調課或代課，但請自行跟相關單位確認。</em></p><p><strong>領域時間要注意</strong>：同一科的老師領域時間通常是同一個時段，那兩節整科都在開會。程式不知道這件事，還是會把同科老師列成候選。灰框就是提醒你「這節其實有事」，要不要接受由你判斷。</p><h4>六、程式怎麼認課別</h4><p>看的是<strong>課程名稱裡的關鍵字</strong>，不是課號、不是老師：</p><table><tr><th>類別</th><th>關鍵字</th></tr><tr><td class=\"rk\">只能代課（藍框）</td><td>課名含「多元」、「自主」、「團體活動」</td></tr><tr><td class=\"rk\">連堂（紫框）</td><td>課名含「-探究」，或在確認過的白名單裡（目前：生活科技）</td></tr><tr><td class=\"rk\">領域時間（灰框）</td><td>課名<strong>以「領域」結尾</strong>（「領域課程」除外，那是真的有學生的課）</td></tr><tr><td class=\"rk\">行政會議（⚠）</td><td>課名含「行政會」</td></tr><tr><td class=\"rk\">IB 課程</td><td>課名<strong>完全沒有中文字</strong>（<code>PE</code>、<code>Math AA SL</code>…）</td></tr><tr><td class=\"rk\">雙語老師</td><td>PDF 職稱含「雙語」</td></tr></table><p>學校改課名，判斷就會跟著變。只要新課名還有這些關鍵字（例如「行政會報」改成「行政會議」、「團體活動」改成「團體活動時間」）程式照樣認得；若改成完全不同的詞（例如「領域時間」改叫「共同備課」），就要通知維護者改設定。</p><h4>七、程式不知道的事</h4><ul><li>同科老師的領域時間是同一個時段——那兩節整科都在開會，程式還是會把他們列成候選</li><li>對方的「只能代課」時段——程式只擋你自己那一邊</li><li>兼課節數、鐘點費、公假出差——完全不知道</li><li>課名看不懂的課（如 WG、OH、TSP、Wri）——「同科老師」推薦會不準</li></ul>",
     modalSub: '這個程式只能幫忙對課表找時段，但不知道其他調代課規則。<br>This tool only matches schedules to find slots; it doesn\'t know other substitution rules.',
     modalOk: "我知道了 / Got it",
 
@@ -657,21 +655,18 @@ const STRINGS = {
     ibPrefix: "IB優先 · ",
     grpOther: "其他科別選擇",
     grpOtherIb: "IB · 其他科別選擇",
-    // IB 課程的四階優先序（依「子科目」）
-    grpIbSameDetail: (full) => `第一優先 · 同子科（${full}）的 IB 教師`,
-    grpSameDetail: (full) => `第二優先 · 同子科（${full}）的老師`,
-    grpIbOther: "第三優先 · 其他 IB 教師",
-    grpNonIbOther: "第四優先 · 其他老師",
-    rateDouble: "2倍鐘點",
-    rateNormal: "原鐘點",
-    ibRateNote: "⚠️ 這是 IB 課程，候選改以「同子科」優先。鐘點：同子科的 <strong>IB 教師 2 倍</strong>、同子科的 <strong>雙語教師 2 倍</strong>；同子科非雙語教師為原鐘點。",
+    // IB 課程的三階優先序（依「子科目」）——只排序，不限制誰可以代
+    grpIbSameDetail: (full) => `第一優先 · IB 教師（同子科：${full}）`,
+    grpIbOtherSub: "第二優先 · IB 教師（其他科目）",
+    grpNonIbOther: "第三優先 · 其他老師",
+    ibRateNote: "這一節是 <strong>IB 課程</strong>。鐘點提醒：代課老師若為 <strong>IB 教師且以雙語授課</strong>，為 <strong>2 倍鐘點</strong>；非雙語授課、或非 IB 教師，則為原鐘點。（僅供參考，實際以人事規定為準）",
     candHomeroom: "（導師）",
     candSubOnly: "僅可代課",
     emptyNone: "無",
     emptyBusy: "都在上課",
     emptyBusyKlass: "這班的老師這節都在上課",
     emptyBusySub: (full) => `${full}老師這節都在上課`,
-    emptyBusyDetail: (full) => `同子科（${full}）的老師這節都在上課`,
+    emptyBusyDetail: (full) => `同子科（${full}）的 IB 教師這節都在上課`,
 
     // 面板
     panelTitle: "這節有空的老師",
@@ -764,7 +759,7 @@ const STRINGS = {
     officeScreenshot: "📸 Screenshot (change tables)",
     footerIssue: "Having trouble?",
     rulesBtn: "ⓘ How the tool decides (what can't be swapped, consecutive periods, meetings)",
-        rulesBody: "<h4>The one thing to remember</h4><p>This tool <strong>only matches schedules to find who is free</strong>. It does not know school policy, teaching loads or leave rules. <strong>It gives you a candidate list, not a decision.</strong></p><h4>1. Cell borders</h4><table><tr><th>Border</th><th>Meaning</th><th>Swap</th><th>Sub</th></tr><tr><td class=\"rk\">none</td><td>Regular class</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-inq\"></span>Purple</td><td>Consecutive double period (same teacher preferred, <strong>not required</strong>)</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-sub\"></span>Blue</td><td>Elective / self-study / group activity</td><td>❌</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-ryu\"></span>Grey</td><td>Department meeting time (actually a free slot)</td><td>—</td><td>—</td></tr><tr><td class=\"rk\">⚠</td><td>Admin meeting / group activity (not a regular class)</td><td>see border</td><td>✅</td></tr></table><h4>2. Sub only, no swap (blue border)</h4><ul><li><strong>Electives</strong> (name contains 多元) — students come from many classes; moving the slot means nobody shows up</li><li><strong>Self-study</strong> (name contains 自主) — school-wide fixed slot</li><li><strong>Group activity</strong> (Fri P5–P6) — school-wide at the same time, so there is nobody free to swap with</li></ul><p>Clicking such a cell disables swapping and offers substitutes only.</p><p>Note the tool only blocks <em>your own</em> leave slot. Someone else's elective / self-study slot is still offered as a swap target — that call is theirs to make.</p><h4>3. What \"consecutive\" means (purple border)</h4><p><strong>It is not enforced.</strong> You can still cover only the first period, swap only one period, use two different substitutes, or have one person take both.</p><p>Marking a course as consecutive only <strong>adds</strong> two things: a \"free for both periods\" group at the top of the candidate list, and a reminder note on the panel. So listing a course as consecutive has upside only.</p><p>Currently 3 courses qualify: 化學-探究A, 物理-探究B, 生活科技. There are 76 course names that merely happen to sit in two adjacent periods for the same class; which of those must actually run back-to-back is something the tool cannot know — ask the academic office.</p><h4>4. IB courses are ranked differently</h4><p>If the slot you clicked is an <strong>IB course</strong> (a course name with no Chinese characters, e.g. <code>PE</code>, <code>Math AA SL</code>, <code>Chi B SL</code>), candidates are ranked by <strong>sub-subject</strong> — the subject actually taught (Physics, PE, English…) rather than the teacher's main subject.</p><table><tr><th>Rank</th><th>Who</th><th>Pay</th></tr><tr><td class=\"rk\">1</td><td>Same sub-subject, <strong>IB teacher</strong></td><td><span class=\"rate-tag rate-2x\">2× rate</span></td></tr><tr><td class=\"rk\">2</td><td>Same sub-subject, non-IB</td><td>bilingual <span class=\"rate-tag rate-2x\">2× rate</span> / otherwise <span class=\"rate-tag rate-1x\">std rate</span></td></tr><tr><td class=\"rk\">3</td><td>Other IB teachers</td><td>std rate</td></tr><tr><td class=\"rk\">4</td><td>Other teachers</td><td>std rate</td></tr></table><p>The badge appears on the candidate button itself, and the panel shows a reminder line.</p><ul><li>\"Bilingual\" comes from the job-title tag in the timetable PDF</li><li>Non-IB courses are unchanged: same class → same subject → other subjects</li><li>IB courses have <strong>no separate \"same class\" group</strong> — those teachers appear in whichever rank they belong to</li><li>If a teacher has no sub-subject on record, the tool falls back to the main subject so the ranks are never empty</li></ul><h4>5. Meetings, department time, group activity</h4><table><tr><th>Type</th><th>On the grid</th><th>When you take leave</th><th>Can others swap in?</th></tr><tr><td class=\"rk\">Department meeting time<br><span style=\"font-weight:400;color:#78716c\">XX領域</span></td><td><span class=\"swatch sw-ryu\"></span>Grey empty cell + faint label</td><td>Nothing to do — it is not a class</td><td>✅ Yes (treated as free)</td></tr><tr><td class=\"rk\">Admin meeting<br><span style=\"font-weight:400;color:#78716c\">Mon P1–P2</span></td><td>Occupied + ⚠</td><td>Swap or sub</td><td>✅ Yes</td></tr><tr><td class=\"rk\">Group activity<br><span style=\"font-weight:400;color:#78716c\">Fri P5–P6</span></td><td><span class=\"swatch sw-sub\"></span>Blue + ⚠</td><td><strong>Sub only</strong>, no swap</td><td>❌ No</td></tr></table><p>⚠ means: this is not a regular class. A swap or sub is allowed in principle, but please confirm with the relevant office.</p><p><strong>Caveat</strong>: teachers of the same subject usually share one department meeting slot, so the whole subject is in a meeting then. The tool does not know this and will still list them. The grey border is your reminder.</p><h4>6. How courses are classified</h4><p>By <strong>keywords in the course name</strong> — not by course code or teacher:</p><table><tr><th>Type</th><th>Keyword</th></tr><tr><td class=\"rk\">Sub only (blue)</td><td>name contains 多元 / 自主 / 團體活動</td></tr><tr><td class=\"rk\">Consecutive (purple)</td><td>name contains -探究, or is on the confirmed list (currently 生活科技)</td></tr><tr><td class=\"rk\">Department time (grey)</td><td>name <strong>ends with 領域</strong> (except 領域課程, which is a real class)</td></tr><tr><td class=\"rk\">Admin meeting (⚠)</td><td>name contains 行政會</td></tr><tr><td class=\"rk\">IB course</td><td>course name has <strong>no Chinese characters</strong></td></tr><tr><td class=\"rk\">Bilingual teacher</td><td>job title contains 雙語</td></tr></table><p>If the school renames a course but keeps these keywords the tool still recognises it; if it renames to something entirely different, the maintainer must update the settings.</p><h4>7. What the tool does not know</h4><ul><li>That a whole subject is in its department meeting at that hour</li><li>Whether the other teacher's slot may be moved</li><li>Teaching loads, pay, official leave</li><li>Courses with opaque names (WG, OH, TSP, Wri) — subject matching will be off</li></ul>",
+            rulesBody: "<h4>The one thing to remember</h4><p>This tool <strong>only matches schedules to find who is free</strong>. It does not know school policy, teaching loads or leave rules. <strong>It gives you a candidate list, not a decision.</strong></p><h4>1. Cell borders</h4><table><tr><th>Border</th><th>Meaning</th><th>Swap</th><th>Sub</th></tr><tr><td class=\"rk\">none</td><td>Regular class</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-inq\"></span>Purple</td><td>Consecutive double period (same teacher preferred, <strong>not required</strong>)</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-sub\"></span>Blue</td><td>Elective / self-study / group activity</td><td>❌</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-ryu\"></span>Grey</td><td>Department meeting time (actually a free slot)</td><td>—</td><td>—</td></tr><tr><td class=\"rk\">⚠</td><td>Admin meeting / group activity (not a regular class)</td><td>see border</td><td>✅</td></tr></table><h4>2. Sub only, no swap (blue border)</h4><ul><li><strong>Electives</strong> (name contains 多元) — students come from many classes; moving the slot means nobody shows up</li><li><strong>Self-study</strong> (name contains 自主) — school-wide fixed slot</li><li><strong>Group activity</strong> (Fri P5–P6) — school-wide at the same time, so there is nobody free to swap with</li></ul><p>Clicking such a cell disables swapping and offers substitutes only.</p><p>Note the tool only blocks <em>your own</em> leave slot. Someone else's elective / self-study slot is still offered as a swap target — that call is theirs to make.</p><h4>3. What \"consecutive\" means (purple border)</h4><p><strong>It is not enforced.</strong> You can still cover only the first period, swap only one period, use two different substitutes, or have one person take both.</p><p>Marking a course as consecutive only <strong>adds</strong> two things: a \"free for both periods\" group at the top of the candidate list, and a reminder note on the panel. So listing a course as consecutive has upside only.</p><p>Currently 3 courses qualify: 化學-探究A, 物理-探究B, 生活科技. There are 76 course names that merely happen to sit in two adjacent periods for the same class; which of those must actually run back-to-back is something the tool cannot know — ask the academic office.</p><h4>4. IB courses are ordered differently</h4><p>If the slot you clicked is an <strong>IB course</strong> (a course name with no Chinese characters, e.g. <code>PE</code>, <code>Math AA SL</code>, <code>Chi B SL</code>), the candidate list is <strong>ordered</strong> like this:</p><table><tr><th>Rank</th><th>Who</th></tr><tr><td class=\"rk\">1</td><td><strong>IB teachers</strong> of the same sub-subject (the subject actually taught — Physics, PE, …)</td></tr><tr><td class=\"rk\">2</td><td><strong>IB teachers</strong>, other subjects</td></tr><tr><td class=\"rk\">3</td><td>Everyone else</td></tr></table><p><strong>This is ordering, not a restriction.</strong> Every free teacher is still listed and anyone may cover or swap — the more suitable ones simply come first.</p><p><strong>Pay note</strong>: when covering an IB course, a substitute who is an <strong>IB teacher teaching bilingually</strong> is paid at <strong>2× rate</strong>; non-bilingual instruction, or a non-IB teacher, is paid the standard rate.</p><p>The tool cannot know whether a given lesson will actually be taught bilingually, so it <strong>never labels an individual teacher with a rate</strong>. It only shows the note above in three places: the candidate panel, your own schedule, and the counterpart's schedule — and only when an IB course is being covered.</p><ul><li>Non-IB courses are unchanged: same class → same subject → other subjects</li><li>IB courses have <strong>no separate \"same class\" group</strong> — those teachers appear in whichever rank they belong to</li><li>If a teacher has no sub-subject on record, the tool falls back to the main subject</li></ul><h4>5. Meetings, department time, group activity</h4><table><tr><th>Type</th><th>On the grid</th><th>When you take leave</th><th>Can others swap in?</th></tr><tr><td class=\"rk\">Department meeting time<br><span style=\"font-weight:400;color:#78716c\">XX領域</span></td><td><span class=\"swatch sw-ryu\"></span>Grey empty cell + faint label</td><td>Nothing to do — it is not a class</td><td>✅ Yes (treated as free)</td></tr><tr><td class=\"rk\">Admin meeting<br><span style=\"font-weight:400;color:#78716c\">Mon P1–P2</span></td><td>Occupied + ⚠</td><td>Swap or sub</td><td>✅ Yes</td></tr><tr><td class=\"rk\">Group activity<br><span style=\"font-weight:400;color:#78716c\">Fri P5–P6</span></td><td><span class=\"swatch sw-sub\"></span>Blue + ⚠</td><td><strong>Sub only</strong>, no swap</td><td>❌ No</td></tr></table><p>⚠ means: this is not a regular class. A swap or sub is allowed in principle, but please confirm with the relevant office.</p><p><strong>Caveat</strong>: teachers of the same subject usually share one department meeting slot, so the whole subject is in a meeting then. The tool does not know this and will still list them. The grey border is your reminder.</p><h4>6. How courses are classified</h4><p>By <strong>keywords in the course name</strong> — not by course code or teacher:</p><table><tr><th>Type</th><th>Keyword</th></tr><tr><td class=\"rk\">Sub only (blue)</td><td>name contains 多元 / 自主 / 團體活動</td></tr><tr><td class=\"rk\">Consecutive (purple)</td><td>name contains -探究, or is on the confirmed list (currently 生活科技)</td></tr><tr><td class=\"rk\">Department time (grey)</td><td>name <strong>ends with 領域</strong> (except 領域課程, which is a real class)</td></tr><tr><td class=\"rk\">Admin meeting (⚠)</td><td>name contains 行政會</td></tr><tr><td class=\"rk\">IB course</td><td>course name has <strong>no Chinese characters</strong></td></tr><tr><td class=\"rk\">Bilingual teacher</td><td>job title contains 雙語</td></tr></table><p>If the school renames a course but keeps these keywords the tool still recognises it; if it renames to something entirely different, the maintainer must update the settings.</p><h4>7. What the tool does not know</h4><ul><li>That a whole subject is in its department meeting at that hour</li><li>Whether the other teacher's slot may be moved</li><li>Teaching loads, pay, official leave</li><li>Courses with opaque names (WG, OH, TSP, Wri) — subject matching will be off</li></ul>",
     modalSub: '這個程式只能幫忙對課表找時段，但不知道其他調代課規則。<br>This tool only matches schedules to find slots; it doesn\'t know other substitution rules.',
     modalOk: "我知道了 / Got it",
 
@@ -816,20 +811,17 @@ const STRINGS = {
     ibPrefix: "IB priority · ",
     grpOther: "Other subjects",
     grpOtherIb: "IB · Other subjects",
-    grpIbSameDetail: (full) => `1st priority · IB teachers of the same sub-subject (${full})`,
-    grpSameDetail: (full) => `2nd priority · Teachers of the same sub-subject (${full})`,
-    grpIbOther: "3rd priority · Other IB teachers",
-    grpNonIbOther: "4th priority · Other teachers",
-    rateDouble: "2× rate",
-    rateNormal: "std rate",
-    ibRateNote: "⚠️ This is an IB course, so candidates are ranked by sub-subject. Pay: same sub-subject <strong>IB teacher 2×</strong>, same sub-subject <strong>bilingual teacher 2×</strong>; same sub-subject non-bilingual teacher at the standard rate.",
+    grpIbSameDetail: (full) => `1st priority · IB teachers (same sub-subject: ${full})`,
+    grpIbOtherSub: "2nd priority · IB teachers (other subjects)",
+    grpNonIbOther: "3rd priority · Other teachers",
+    ibRateNote: "This is an <strong>IB course</strong>. Pay note: a substitute who is an <strong>IB teacher teaching bilingually</strong> is paid at <strong>2× rate</strong>; non-bilingual instruction, or a non-IB teacher, is paid the standard rate. (For reference only — HR rules prevail.)",
     candHomeroom: "(Homeroom)",
     candSubOnly: "SUB ONLY",
     emptyNone: "None",
     emptyBusy: "All teaching now",
     emptyBusyKlass: "All of this class's teachers are teaching now",
     emptyBusySub: (full) => `All ${full} teachers are teaching now`,
-    emptyBusyDetail: (full) => `All same sub-subject (${full}) teachers are teaching now`,
+    emptyBusyDetail: (full) => `All IB teachers of the same sub-subject (${full}) are teaching now`,
 
     panelTitle: "Teachers free this period",
     ibCourseOnly: "IB course · IB teachers only",
@@ -1627,7 +1619,9 @@ function renderSelfSchedule() {
     }
   }
 
-  let html = '<table class="schedule">' + buildHeader("before") + '<tbody>';
+  let html = confsCoverIbCourse(selfConfs, myCode)
+    ? `<div class="ib-rate-note">${t("ibRateNote")}</div>` : '';
+  html += '<table class="schedule">' + buildHeader("before") + '<tbody>';
   for (let p = 1; p <= 7; p++) {
     html += `<tr><th>${p}</th>`;
     for (let d = 1; d <= 5; d++) {
@@ -1664,6 +1658,15 @@ function renderSelfSchedule() {
   div.innerHTML = html;
 }
 
+// 這批安排裡有沒有「請人來代我的 IB 課」？有的話要顯示鐘點提醒。
+// 只看被代的那一節（＝我請假的那一節），不是 IB 課就不提醒。
+function confsCoverIbCourse(confs, myCode) {
+  return confs.some(c => {
+    const e = getEntry(myCode, c.day, c.period);
+    return e && isIbCourse(e.course);
+  });
+}
+
 function renderPartnerSchedules() {
   const sec = document.getElementById("partner-section");
   const div = document.getElementById("partner-schedules");
@@ -1687,6 +1690,9 @@ function renderPartnerSchedules() {
     const fullText = generateSummaryForPartner(pcode, confs);
 
     html += `<div data-pcard-pcode="${pcode}" style="margin: 1em 0; padding: 0.8em; border:1px solid var(--border); border-radius:6px;">`;
+    if (confsCoverIbCourse(confs, myCode)) {
+      html += `<div class="ib-rate-note">${t("ibRateNote")}</div>`;
+    }
     // 訊息預覽（先寫出來再讓使用者複製）
     html += `<pre style="background:#f9fafb; border:1px solid var(--border); padding:0.6em 0.8em; border-radius:4px; margin:0.4em 0; white-space:pre-wrap; word-break:break-word; font-size:0.9em; line-height:1.6; font-family:inherit;">${escapeHtml(fullText)}</pre>`;
     // 按鈕
@@ -2336,14 +2342,15 @@ function getCandidateGroups(leaveSlot) {
   const sameKlassLabel = t("grpSameKlass");
 
   if (ibLeave) {
-    // IB 課程的四階優先序（2026-09 確認）：
-    //   1. 同子科 IB 教師   2. 同子科教師   3. 其他 IB 教師   4. 其他教師
+    // IB 課程的三階優先序（2026-09 確認）——**只排序，不限制任何人**：
+    //   1. IB 教師且同子科目   2. 其他科目的 IB 教師   3. 其他老師
     // 依據是「子科目（細科目）」而非主授科目——IB 課程講究實際教的學科。
-    // 鐘點：同子科 IB 教師、同子科雙語教師為 2 倍鐘點，同子科非雙語為原鐘點。
+    // 鐘點不在這裡判定：那要看代課當下是不是雙語授課，程式無從得知，
+    // 只在面板／自己課表／對方課表上做文字提醒（見 t("ibRateNote")）。
     // 註：IB 課程不另立「同班」群組（同班老師會落在他所屬的那一階裡）。
-    // IB 模式開啟時，非 IB 群組一律隱藏。
+    // IB 模式開啟時，非 IB 群組一律隱藏（那是使用者自己開的篩選，與排序無關）。
     const ibOnly = document.getElementById("ib-mode").checked;
-    // 我的子科目；沒有子科目資料時退回用主授科目比對，才不會四階全空
+    // 我的子科目；沒有子科目資料時退回用主授科目比對，才不會前兩階全空
     const sameDetailFull = myDetail ? fullDet(myDetail) : subFull;
     const isSameDetail = myDetail ? (t => t.detail === myDetail) : isSame;
 
@@ -2356,25 +2363,21 @@ function getCandidateGroups(leaveSlot) {
       });
     }
     const ibSameDetail = free.filter(t => t.isIB && isSameDetail(t));
-    const sameDetailOnly = free.filter(t => !t.isIB && isSameDetail(t));
-    const ibOther = free.filter(t => t.isIB && !isSameDetail(t));
-    const rest = free.filter(t => !t.isIB && !isSameDetail(t));
+    const ibOtherSub = free.filter(t => t.isIB && !isSameDetail(t));
+    const rest = free.filter(t => !t.isIB);
 
     groups.push({ label: t("grpIbSameDetail", sameDetailFull), priority: 1,
-                  teachers: ibSameDetail, kind: "sameDetail", rate: "double" });
-    if (!ibOnly) {
-      groups.push({ label: t("grpSameDetail", sameDetailFull), priority: 2,
-                    teachers: sameDetailOnly, kind: "sameDetail", rate: "byBilingual" });
-    }
-    groups.push({ label: t("grpIbOther"), priority: 3, teachers: ibOther, splitByDomain: true });
+                  teachers: ibSameDetail, kind: "sameDetail" });
+    groups.push({ label: t("grpIbOtherSub"), priority: 2,
+                  teachers: ibOtherSub, splitByDomain: true });
     if (!ibOnly) {
       if (nonIbBoth.length > 0) {
         groups.push({
           label: t("grpBothOther", lo, hi),
-          priority: 4, teachers: nonIbBoth, coverBoth: true,
+          priority: 3, teachers: nonIbBoth, coverBoth: true,
         });
       }
-      groups.push({ label: t("grpNonIbOther"), priority: 5, teachers: rest, splitByDomain: true });
+      groups.push({ label: t("grpNonIbOther"), priority: 3, teachers: rest, splitByDomain: true });
     }
     return groups;
   }
@@ -2411,21 +2414,7 @@ function sortCandidates(arr, leaveKlass, leaveDetail) {
   });
 }
 
-// IB 課程代課鐘點標記。rate:
-//   "double"       → 一律 2 倍鐘點（同子科 IB 教師）
-//   "byBilingual"  → 雙語 2 倍鐘點、非雙語原鐘點（同子科非 IB 教師）
-//   其他/未指定    → 不標
-function rateTagHtml(tt, rate) {
-  if (rate === "double" || (rate === "byBilingual" && tt.isBilingual)) {
-    return `<span class="rate-tag rate-2x">${t("rateDouble")}</span>`;
-  }
-  if (rate === "byBilingual") {
-    return `<span class="rate-tag rate-1x">${t("rateNormal")}</span>`;
-  }
-  return "";
-}
-
-function candBtn(tt, priority, leaveKlass, leaveDetail, subOnly = false, rate = null) {
+function candBtn(tt, priority, leaveKlass, leaveDetail, subOnly = false) {
   // 注意：參數不可命名為 t，會遮蔽全域 i18n 的 t()
   const active = state.partnerCode === tt.code;
   const isHomeroom = leaveKlass && tt.homeroom === leaveKlass;
@@ -2437,7 +2426,7 @@ function candBtn(tt, priority, leaveKlass, leaveDetail, subOnly = false, rate = 
   const subOnlyTag = subOnly ? `<span style="color:#9ca3af; font-size:0.72em; margin-left:0.3em;">${t("candSubOnly")}</span>` : '';
   // 括弧內：中文介面顯示細科目全名（譬如「物理科」）；English 介面用科目英文簡寫
   const labelInParen = LANG === "en" ? t("subjLabel", tt.subject) : (tt.detail ? fullDet(tt.detail) : fullSub(tt.subject));
-  return `<button class="cand-btn pri-${priority}${active ? ' active' : ''}" data-pcode="${tt.code}"><strong style="font-weight:700">${teacherDisplayName(tt)}</strong>${hrTag}${dtTag}${subOnlyTag}<span style="font-size:0.75em; opacity:0.68; margin-left:0.25em">${labelInParen}</span>${rateTagHtml(tt, rate)}</button>`;
+  return `<button class="cand-btn pri-${priority}${active ? ' active' : ''}" data-pcode="${tt.code}"><strong style="font-weight:700">${teacherDisplayName(tt)}</strong>${hrTag}${dtTag}${subOnlyTag}<span style="font-size:0.75em; opacity:0.68; margin-left:0.25em">${labelInParen}</span></button>`;
 }
 
 function groupSubtitle(g) {
@@ -2482,7 +2471,7 @@ function renderGroups(groups, leaveKlass, leaveDetail) {
           const subT = sortCandidates(g.teachers.filter(t => t.subject === sub), leaveKlass, dt);
           if (subT.length === 0) continue;
           html += `<div class="candidate-subgroup"><h4>${sub}</h4>`;
-          for (const t of subT) html += candBtn(t, g.priority, leaveKlass, dt, false, g.rate);
+          for (const t of subT) html += candBtn(t, g.priority, leaveKlass, dt);
           html += `</div>`;
         }
       }
@@ -2505,10 +2494,10 @@ function renderGroups(groups, leaveKlass, leaveDetail) {
         // 可調課者優先，僅代課者排後並附灰字提示
         const canSwap = sorted.filter(tk => !g.subOnlyCodes.has(tk.code));
         const subOnlyArr = sorted.filter(tk => g.subOnlyCodes.has(tk.code));
-        for (const tk of canSwap) html += candBtn(tk, g.priority, leaveKlass, dt2, false, g.rate);
-        for (const tk of subOnlyArr) html += candBtn(tk, g.priority, leaveKlass, dt2, true, g.rate);
+        for (const tk of canSwap) html += candBtn(tk, g.priority, leaveKlass, dt2, false);
+        for (const tk of subOnlyArr) html += candBtn(tk, g.priority, leaveKlass, dt2, true);
       } else {
-        for (const tk of sorted) html += candBtn(tk, g.priority, leaveKlass, dt2, false, g.rate);
+        for (const tk of sorted) html += candBtn(tk, g.priority, leaveKlass, dt2, false);
       }
     }
 
@@ -2562,7 +2551,7 @@ function renderPanel() {
     html += `<div class="panel-note">${t("inquiryNote", lo, hi)}</div>`;
   }
   if (ibLeave) {
-    html += `<div class="panel-note" style="color:#b91c1c">${t("ibRateNote")}</div>`;
+    html += `<div class="ib-rate-note">${t("ibRateNote")}</div>`;
   }
   if (isNoticeCourse(e.course)) {
     html += `<div class="panel-note" style="color:#92400e">${t("noticeNote")}</div>`;
