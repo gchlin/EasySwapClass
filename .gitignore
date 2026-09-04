@@ -60,3 +60,7 @@ desktop.ini
 # Legacy school-wide working folder (real timetable data + name-bearing HTML).
 # Superseded by the v2 versions/ + live/ layout; keep local, never track.
 /school_wide/
+
+# Local test fixtures for tests/*.test.js — real timetable data, keep local.
+/template/data.js
+/template/en_name.js

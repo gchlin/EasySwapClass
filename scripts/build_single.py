@@ -44,7 +44,21 @@ def main():
 
     with open(csv_path, encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
-    data, teachers = build_data_and_teachers(rows)
+    roster = None
+    roster_json = paths.teachers_json_path(version)
+    if roster_json.exists():
+        roster = json.loads(roster_json.read_text(encoding="utf-8"))
+    data, teachers = build_data_and_teachers(rows, roster)
+
+    # 領域時間（視同空堂，網頁只畫灰框標示）；缺檔就空陣列
+    ryu = []
+    ryu_json = paths.ryu_json_path(version)
+    if ryu_json.exists():
+        ryu = [
+            {"tcode": r["tcode"], "day": r["day"], "period": r["period"],
+             "course": r.get("course", "領域時間")}
+            for r in json.loads(ryu_json.read_text(encoding="utf-8"))
+        ]
 
     def js_json(obj):
         # 防止資料裡萬一出現 </script> 提前關閉腳本標籤
@@ -55,6 +69,7 @@ def main():
         "window.__DATA_VERSION__ = " + js_json(version) + ";\n"
         "window.__DATA__ = " + js_json(data) + ";\n"
         "window.__TEACHERS__ = " + js_json(teachers) + ";\n"
+        "window.__RYU__ = " + js_json(ryu) + ";\n"
         "</script>"
     )
     html = html.replace(LOADER_TAG, inline, 1)
@@ -62,7 +77,8 @@ def main():
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"[ok] 已寫出 {out_path}")
-    print(f"     資料版本：{version}／{len(data)} 筆課程 / {len(teachers)} 位老師（已內嵌，不需 data.js）")
+    print(f"     資料版本：{version}／{len(data)} 筆課程 / {len(teachers)} 位老師"
+          f" / 領域時間 {len(ryu)} 格（已內嵌，不需 data.js）")
 
 
 if __name__ == "__main__":

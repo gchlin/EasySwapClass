@@ -4,6 +4,8 @@
 
 > 需求演進與設計決策記錄：[DEVLOG.md](DEVLOG.md)
 > 維護者操作手冊（非技術友善）：[維護說明.md](維護說明.md)
+> **判斷規則說明（給教學組長，不涉及程式）：[調代課規則說明_教學組長版.md](調代課規則說明_教學組長版.md)**
+> 　同一份內容也做在網頁最下方的「ⓘ 判斷規則說明」摺疊區（中英雙語）
 
 ---
 
@@ -55,7 +57,8 @@ Switch_time/
 ├── README.md / DEVLOG.md / 維護說明.md / .gitignore
 ├── scripts/
 │   ├── paths.py            集中所有路徑與「目前版本」邏輯（改版面只動這檔）
-│   ├── extract_school.py   PDF → versions/<版本>/全校課表_長表.csv + 報告 + 領域時間.json
+│   ├── extract_school.py   PDF → versions/<版本>/全校課表_長表.csv + 報告
+│   │                       + 領域時間.json + teachers.json（完整教師名冊）
 │   │                       參數：--version、--ryu-only（只重產領域時間，不動 CSV）
 │   ├── extract_v2.py       PDF 解析底層，被 extract_school 引用（需保留）
 │   ├── build_data.py       CSV → versions/<版本>/data.js
@@ -147,7 +150,7 @@ live/index.html   ← 執行時引用同層的 live/data.js
 |------|------|----------|
 | `paths.py` | 集中所有路徑與「目前版本」邏輯；改版面只動這一個檔 | ✓ |
 | `menu.py` | 互動選單（雙擊 更新課表.bat 進入）；呼叫各腳本 + 發布到 live/ | ✓ |
-| `extract_school.py` | 全校 PDF → CSV + 抽取報告 + 領域時間.json；含分類規則 | ✓ |
+| `extract_school.py` | 全校 PDF → CSV + 抽取報告 + 領域時間.json + teachers.json；含分類規則 | ✓ |
 | `extract_v2.py` | PDF 解析底層（parse_cell 等），被 extract_school 引用；需保留 | ✓ |
 | `build_data.py` | CSV → data.js（含 `__DATA_VERSION__`、`__DATA__`、`__TEACHERS__`） | ✓ |
 | `build_single.py` | 母檔 + CSV → 單檔 HTML（資料內嵌）；適合自己手機 / email | ✓ |
@@ -173,7 +176,8 @@ live/index.html   ← 執行時引用同層的 live/data.js
 | `versions/<版本>/代課查詢_單檔.html` | 單檔成品（含課表資料，私有） | ✗ |
 | `versions/<版本>/全校_extraction_report.md` | PDF 抽取健檢報告（私有） | ✗ |
 | `versions/<版本>/全校_領域時間.md` | 領域時間獨立列表（私有） | ✗ |
-| `versions/<版本>/領域時間.json` | 結構化領域時間，供 audit 用（私有） | ✗ |
+| `versions/<版本>/領域時間.json` | 結構化領域時間（視同空堂），供 audit 與網頁灰框標示用（私有） | ✗ |
+| `versions/<版本>/teachers.json` | 完整教師名冊（來源＝PDF 表頭，非 CSV 反推；私有） | ✗ |
 | `versions/<版本>/分類確認表.md` | 人工審查表（私有） | ✗ |
 | `live/index.html` | nginx 服務的 HTML（= 母檔複本，私有） | ✗ |
 | `live/data.js` | nginx 服務的資料（= 目前版本，私有） | ✗ |
@@ -254,9 +258,15 @@ python scripts/build_strokes.py
 | 課程名稱 → 主授科目分類（classify_course_subject） | `scripts/extract_school.py` |
 | 課程名稱 → 細科目（classify_course_detail） | `scripts/extract_school.py` |
 | 教師類別（IB / 普通班）判斷 | `scripts/extract_school.py` |
-| 領域時間偵測（course == "領域時間"） | `scripts/extract_school.py` |
+| 職稱括號 → 主授科目（POST_TAG_TO_SUBJECT） | `scripts/extract_school.py`；優先序：代號 prefix ＞ 職稱括號 ＞ 課名投票 |
+| 領域時間偵測（課名以「領域」結尾，排除「領域課程」）→ 整格排除出 CSV、視同空堂 | `scripts/extract_school.py` |
 | JS 端 IB 課程偵測（決定走幾階優先順序） | `template/代課查詢_發布.html` 的 `isIbCourse()`（課名不含中文＝IB） |
-| JS 端連堂課偵測（探究 / IPSS） | `template/代課查詢_發布.html` 的 `isInquiryCourse()` |
+| JS 端連堂課偵測（`INQUIRY_NAMES` 白名單 + 規則 `含「-探究」`） | `template/代課查詢_發布.html` 的 `isInquiryCourse()`；候選清單見 [連堂課程_待確認清單.md](連堂課程_待確認清單.md) |
+| JS 端藍框「只能代課」（多元／自主／團體活動） | `template/代課查詢_發布.html` 的 `isSubOnlyCourse()` |
+| JS 端 ⚠ 提示（行政會議／團體活動時間） | `template/代課查詢_發布.html` 的 `isNoticeCourse()` |
+| JS 端領域時間灰框標示（資料仍為空堂） | `template/代課查詢_發布.html` 的 `ryuAt()`，資料來自 `window.__RYU__` |
+
+課程性質規則的確認過程與決議：[課程性質_待確認清單.md](課程性質_待確認清單.md)。
 
 ---
 
@@ -296,13 +306,31 @@ pip install pdfplumber
 | 類型 | 問題 | 處理規則 |
 |------|------|----------|
 | 字型缺字 | `物理-探?`（「究」字 PDF 缺字） | `COURSE_RENAMES` 直接 mapping |
+| 同課名兩種寫法 | `物理-探究 B` / `物理-探究B`（協同兩位老師，一位有空格） | `COURSE_RENAMES` 合併；不合併則「同一堂課」比對不到，連堂與協同排除失效 |
 | 結尾括號截斷 | `T2106(ES` 沒有 `)` | 偵測 `^[A-Z]\d+\([A-Za-z]+$` 自動補回 |
 | 多行課程名 | `選修地球科學` + `-大氣、海洋?` 換行 | 累積非「班級樣態」的行為課名延續 |
+| 班級塞進課名 | 單行 `201 Wri`（排課系統沒把班級另起一行） | 班級欄為空且課名以 3 位數班級代碼開頭 → 拆成 課名 `Wri` / 班級 `201` |
 
 判斷規則：
 - **班級樣態**：開頭數字（308、211A）或開頭「共計」
 - **教室樣態**：T / A / S 開頭 + 數字、IB 開頭
 - 都不是 → 視為課名延續
+
+---
+
+## 自動化測試
+
+無外部相依，直接跑 node（在 VM 沙箱載入母檔／單檔的內嵌 script，用最小 DOM stub 呼叫內部函式）：
+
+```powershell
+node tests/triangle.test.js   # 三角調 / 協同排除（需 template/data.js、template/en_name.js）
+node tests/rules.test.js      # 課程性質規則（需 versions/<目前版本>/代課查詢_單檔.html）
+```
+
+改動 `template/代課查詢_發布.html` 或 `scripts/extract_school.py` 的分類 / 規則後請務必跑一次。
+
+`rules.test.js` 會盯著「規則有沒有跟課名脫節」——例如連堂配對命中 0 組就會失敗，
+避免下學期學校改課名後某個功能默默失效卻沒人發現。
 
 ---
 

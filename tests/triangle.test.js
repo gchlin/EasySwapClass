@@ -2,7 +2,7 @@
 /*
  * 三角調 / 協同排除 自動化測試（node，無外部相依）
  *
- * 在 VM 沙箱載入 template/代課查詢_發布v2.html 的內嵌 <script>，搭配真實
+ * 在 VM 沙箱載入 template/代課查詢_發布.html 的內嵌 <script>，搭配真實
  * template/data.js、en_name.js，以最小 DOM stub 直接呼叫內部函式做斷言。
  *
  * 需要本機存在（未進版控的）：template/data.js、template/en_name.js
@@ -13,7 +13,7 @@ const fs = require('fs'), vm = require('vm'), path = require('path');
 const TPL = path.join(__dirname, '..', 'template');
 
 function load(lang) {
-  const html = fs.readFileSync(path.join(TPL, '代課查詢_發布v2.html'), 'utf8').split(/\r?\n/);
+  const html = fs.readFileSync(path.join(TPL, '代課查詢_發布.html'), 'utf8').split(/\r?\n/);
   const s = html.findIndex(x => x.trim() === 'const DATA = (window.__DATA__ || []);');
   const e = html.findIndex((x, i) => i > s && x.trim() === 'init();');
   if (s < 0 || e < 0) throw new Error('找不到內嵌 script 邊界（檔案結構可能變了）');

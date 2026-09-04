@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def extract_post(header_text):
-    """從表頭抽出職務字串：'(N01) 210 導師 頁數： 100' → '210 導師'"""
+    """從表頭抽出職務字串：'○○○ (N01) 210 導師 頁數： 100' → '210 導師'"""
     if not header_text:
         return ""
     m = re.search(r"\([A-Za-z]\d+\)\s*(.+?)\s*頁\s*數", header_text)
@@ -34,6 +34,37 @@ def extract_homeroom_class(post_str):
         return ""
     m = re.search(r"(\d{3}[A-Z]?)\s*導師", post_str)
     return m.group(1) if m else ""
+
+
+# ─── 職稱括號 → 主授科目 ─────────────────────────────────────
+# PDF 表頭的職務字串幾乎都帶科別括號（「教師(健)」「國際交流處主任(體)」
+# 「兼課師(體)」「教師(科技)」），是學校自己標的，比課名投票可靠。
+# 用於 A 系（體/藝/社混合）與 L 系（二外/本土語混合）——這兩系無法用代號 prefix 判定，
+# 而行政兼職 / 兼課老師課少（多為行政會議、領域時間），課名投票常判不出來。
+POST_TAG_TO_SUBJECT = {
+    "國": "國",
+    "英": "英",
+    "數": "數",
+    "體": "體", "健": "體", "防護員": "體", "國防": "體",
+    "歷": "社", "地": "社", "公": "社", "生涯": "社",
+    "物": "自", "化": "自", "生": "自", "地科": "自",
+    "日": "二外", "德": "二外", "法": "二外", "西": "二外", "韓": "二外",
+    "閩": "本土語", "客": "本土語", "客-四縣": "本土語",
+    "阿美語": "本土語", "泰雅": "本土語", "原": "本土語",
+    "音": "藝", "美": "藝", "視覺": "藝", "表藝": "藝",
+    "家": "藝", "資": "藝", "科技": "藝",
+    "輔": "特", "輔導教師": "特", "特教導師": "特",
+}
+
+
+def post_subject(post_str):
+    """職務字串 → 主授科目；括號內容不在對照表（如「教練」「213 導師+體召」）回傳 None。"""
+    if not post_str:
+        return None
+    for tag in re.findall(r"[（(]([^（()）]+)[）)]", post_str):
+        if tag in POST_TAG_TO_SUBJECT:
+            return POST_TAG_TO_SUBJECT[tag]
+    return None
 
 
 # ─── 課程分類器（給「主授科目」/「教師類別」欄位用） ────────────────
@@ -68,8 +99,15 @@ def classify_course_subject(name):
     # 本土語（早期判斷，避免被「國」抓走；也不應被 flex 抓走）
     if any(k in name for k in ["閩南語", "客語", "原住民"]):
         return "本土語"
+    # 行政會議／領域時間：課名每學期會被學校微調
+    #   114-2「行政會報」→ 115-1「行政會議」
+    #   114-2「領域時間」→ 115-1「藝能領域／社會領域／國文領域／自然領域／英文領域／…」
+    # 用規則式比對（而非完整課名白名單），避免下學期再改名又整批落到「其他」。
+    # 必須擺在 國/英/數 判斷之前，否則「英文領域」會被投給「英」、「數學領域」被投給「數」。
+    if name.startswith("行政會") or name.endswith("領域"):
+        return None
     flex = [
-        "行政會報", "團體活動", "領域時間", "領域課程",
+        "行政會報", "行政會議", "團體活動", "領域時間", "領域課程",
         "自主", "多元", "充實", "深廣", "探索", "圖書館",
         "學習的探", "表達力", "分科自學", "分組",
         "Fun ", "Let", "EWANT 數位學習", "EWANT數位學習",
@@ -220,6 +258,7 @@ def main(version, ryu_only=False):
     report_md = str(paths.extraction_report_path(version))
     ryu_md = str(paths.ryu_md_path(version))
     ryu_json = str(paths.ryu_json_path(version))
+    teachers_json = str(paths.teachers_json_path(version))
 
     rows = []
     ryu_entries = []  # 領域時間 entries：另外保留作部門時段表
@@ -228,6 +267,7 @@ def main(version, ryu_only=False):
     raw_4plus = []   # 4+ 行的 cell（可能是新 pattern）
     teacher_set = set()
     teacher_post = {}  # tcode -> 職務（從 header 抽取）
+    teacher_names = {}  # tcode -> 姓名（從 header 抽取；不依賴 CSV 有沒有課）
 
     with pdfplumber.open(str(paths.PDF)) as pdf:
         n_pages = len(pdf.pages)
@@ -244,6 +284,7 @@ def main(version, ryu_only=False):
                 continue
             teacher_set.add(tcode)
             teacher_post[tcode] = extract_post(header_text)
+            teacher_names[tcode] = tname
 
             entry_count = 0
             for row_idx, period in ROW_PERIOD.items():
@@ -270,11 +311,16 @@ def main(version, ryu_only=False):
                     if parsed is None:
                         continue
                     course, klass, room = parsed
-                    # 嚴格相符才當作 領域時間 排除（並另存）
-                    if course == "領域時間":
+                    # 領域時間（科務會議／共同備課）不算「有課」：整格排除出 CSV，
+                    # 網頁上視同空堂（可被調進來），僅另存 ryu_entries 供網頁畫灰框標示。
+                    # 課名每學期會被學校改：114-2「領域時間」→115-1「藝能領域/社會領域/…」，
+                    # 所以用「以『領域』結尾」的規則式比對（Q6-A）。
+                    # 「領域課程」是真的有學生的課，不在此列。
+                    if course == "領域時間" or (course.endswith("領域") and course != "領域課程"):
                         ryu_entries.append({
                             "tcode": tcode, "tname": tname,
                             "day": day, "period": period,
+                            "course": course,
                         })
                         continue
 
@@ -310,9 +356,17 @@ def main(version, ryu_only=False):
     for code in teacher_set:
         cnt = subj_count.get(code)
         main_subject[code] = cnt.most_common(1)[0][0] if cnt else "其他"
-    # 代號 prefix 強制覆蓋：以學校的代號分類為準，避免 IB 跨領域老師等例外
-    # A 例外：沿用課程式分類（體/藝/社 並存）
-    # L 例外：沿用課程式分類（二外 / 本土語 並存）
+    # 職稱括號覆蓋（優先於課名投票、低於代號 prefix）：
+    # PDF 表頭「教師(健)」「國際交流處主任(體)」「教師(科技)」是學校自己標的科別。
+    # 主要救 A/L 系——這兩系不做 prefix 覆蓋，而行政兼職 / 兼課老師課太少
+    # （多為行政會議、領域時間），課名投票會判成「其他」，網頁下拉選單就會整個人漏掉。
+    for code in teacher_set:
+        ps = post_subject(teacher_post.get(code, ""))
+        if ps:
+            main_subject[code] = ps
+    # 代號 prefix 強制覆蓋（最高優先）：以學校的代號分類為準，避免 IB 跨領域老師等例外
+    # A 例外：沿用職稱括號 / 課程式分類（體/藝/社 並存）
+    # L 例外：沿用職稱括號 / 課程式分類（二外 / 本土語 並存）
     PREFIX_TO_SUBJECT = {
         "C": "國", "E": "英", "F": "特", "G": "體",
         "M": "數", "N": "自", "S": "社",
@@ -321,6 +375,17 @@ def main(version, ryu_only=False):
         p = code[0]
         if p in PREFIX_TO_SUBJECT:
             main_subject[code] = PREFIX_TO_SUBJECT[p]
+
+    # 保險：主授科目落在網頁下拉選單科目清單之外的老師，在網頁上會被靜默漏掉。
+    # 這裡出聲警告，避免下次課名改版又悄悄掉人。
+    UI_SUBJECTS = {"國", "英", "自", "數", "社", "藝", "體", "特", "二外", "本土語"}
+    orphans = sorted(c for c in teacher_set if main_subject[c] not in UI_SUBJECTS)
+    if orphans:
+        print(f"  ⚠ 有 {len(orphans)} 位老師的主授科目不在網頁科目清單中，"
+              f"網頁下拉選單會漏人：")
+        for c in orphans:
+            print(f"      {c} {teacher_names.get(c, '?')} "
+                  f"→ 「{main_subject[c]}」 職務={teacher_post.get(c, '')!r}")
 
     # IB 教師：教過至少一門 IB 課程（純英文課名）
     ib_codes = set()
@@ -365,6 +430,24 @@ def main(version, ryu_only=False):
             writer.writerows(rows)
         print(f"[ok] {out_csv}: {len(rows)} 筆 / {len(teacher_set)} 位老師 / {n_pages} 頁")
         print(f"     IB 教師：{len(ib_codes)} 位 / 班級導師：{n_homeroom} 位")
+
+        # 完整教師名冊：來源是 PDF 每頁表頭，不是 CSV 反推。
+        # 有老師全學期只排領域時間（115-1 的 N28），領域時間排除後他在 CSV 是零筆，
+        # 名冊若從 CSV 反推就會整個人消失在網頁選單裡。
+        roster = [
+            {
+                "code": c,
+                "name": teacher_names.get(c, ""),
+                "subject": main_subject[c],
+                "detail": detail[c],
+                "isIB": c in ib_codes,
+                "homeroom": homeroom[c],
+            }
+            for c in sorted(teacher_set)
+        ]
+        with open(teachers_json, "w", encoding="utf-8") as f:
+            json.dump(roster, f, ensure_ascii=False, indent=1)
+        print(f"[ok] {teachers_json}: 教師名冊 {len(roster)} 位")
 
     # 報告
     md = []
@@ -447,10 +530,7 @@ def main(version, ryu_only=False):
     # 老師清單
     teacher_codes = sorted(teacher_set, key=lambda x: int(x[1:]) if x[1:].isdigit() else 999)
     md.append(f"## 老師清單（{len(teacher_codes)} 位）\n")
-    by_letter = defaultdict(list)
-    for r in rows:
-        by_letter[r["教師代碼"]] = r["教師"]
-    teacher_lines = [f"{code}={by_letter.get(code, '?')}" for code in teacher_codes]
+    teacher_lines = [f"{code}={teacher_names.get(code, '?')}" for code in teacher_codes]
     md.append("```\n" + "\n".join(teacher_lines) + "\n```\n")
 
     if not ryu_only:

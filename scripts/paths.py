@@ -83,6 +83,14 @@ def ryu_json_path(version):
     return vdir(version) / "領域時間.json"
 
 
+def teachers_json_path(version):
+    """完整教師名冊（134 位，來源＝PDF 每頁表頭，不是 CSV 反推）。
+
+    有老師全學期只排領域時間（如 115-1 的 N28），這種人在 CSV 裡是零筆，
+    若名冊從 CSV 反推就會整個人消失。名冊獨立出檔才不會漏。"""
+    return vdir(version) / "teachers.json"
+
+
 def list_versions():
     """已存在的版本資料夾名稱（排序）。"""
     if not VERSIONS.exists():

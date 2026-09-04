@@ -28,7 +28,7 @@ if STROKES_JSON.exists():
     strokes_table = json.loads(STROKES_JSON.read_text(encoding="utf-8"))
 
 def name_strokes(name):
-    """姓名總筆劃。非中文字（如 E59）回傳 999 排到最後。"""
+    """姓名總筆劃。非中文字（如英文名）回傳 999 排到最後。"""
     if not name:
         return 999
     total = 0

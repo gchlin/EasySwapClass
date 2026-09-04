@@ -30,6 +30,12 @@ DAY_NAMES = {1: "一", 2: "二", 3: "三", 4: "四", 5: "五"}
 COURSE_RENAMES = {
     "物理-探?": "物理地科探究",
     "化學-探?": "化學生物探究",
+    # 115-1：同一堂協同探究課，PDF 兩位老師的課名一個有空格一個沒有
+    # （有教室的那位無空格）。不統一的話「同一堂課」比對不到，連堂/協同判斷會失效。
+    "物理-探究 B": "物理-探究B",
+    "化學-探究 A": "化學-探究A",
+    "物理-探究 A": "物理-探究A",
+    "化學-探究 B": "化學-探究B",
 }
 
 def is_class_like(line):
@@ -113,11 +119,19 @@ def parse_cell(text):
         klass = re.sub(r"\s+", "", rest[0])
         room = normalize_room(rest[1])
 
+    # 班級被塞進課名欄的單行格子（115-1 E62 的「201 Wri」「101 Wri」「301 Wri」）：
+    # 排課系統沒把班級另起一行，導致班級欄空白、同班老師媒合抓不到。
+    # 只在「班級欄為空 + 課名以 3 位數班級代碼開頭 + 後面還有東西」時才拆，避免誤傷。
+    if not klass:
+        m = re.match(r"^(\d{3}[A-Z]?)\s+(\S.*)$", course)
+        if m:
+            klass, course = m.group(1), m.group(2).strip()
+
     return (course, klass, room)
 
 
 def extract_teacher_header(row0_text):
-    """從 row 0 抓教師代碼 + 名字。例：'教 師： (N01) 210 導師' """
+    """從 row 0 抓教師代碼 + 名字。例：'教 師： ○○○ (N01) 210 導師' """
     if not row0_text:
         return None, None
     text = row0_text.replace("\n", " ")

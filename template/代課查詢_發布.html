@@ -133,7 +133,18 @@
       inset 3px 0 0 #7c3aed,
       inset -3px 0 0 #7c3aed;
   }
-  /* 多元／自主／行政會報：藍框＝不能調課、只能代課（與連堂同明度的藍） */
+  /* 領域時間（科務會議／共同備課）：灰框＝只是標示，資料上視同空堂、可被調進來 */
+  td.ryu {
+    box-shadow:
+      inset 0 3px 0 #a8a29e,
+      inset 0 -3px 0 #a8a29e,
+      inset 3px 0 0 #a8a29e,
+      inset -3px 0 0 #a8a29e;
+  }
+  td .ryu-tag { display: block; font-size: 0.8em; color: #78716c; line-height: 1.3; }
+  /* ⚠ 提示課（行政會議／團體活動時間）：原則上可調可代，只是提醒不是一般授課 */
+  td .notice-mark { color: #d97706; margin-right: 0.15em; }
+  /* 多元／自主／團體活動：藍框＝不能調課、只能代課（與連堂同明度的藍） */
   td.sub-only {
     box-shadow:
       inset 0 3px 0 #3b7fed,
@@ -261,6 +272,8 @@
   .lg-conf-in { background: #d1fae5; border-color: var(--swap); color: #064e3b; }
   .lg-inquiry { background: white; border: 2px solid #7c3aed; color: #5b21b6; }
   .lg-subonly { background: white; border: 2px solid #3b7fed; color: #1d4ed8; }
+  .lg-ryu { background: white; border: 2px solid #a8a29e; color: #57534e; }
+  .lg-notice { background: #fffbeb; border-color: #d97706; color: #92400e; }
 
   /* ⓘ 說明 折疊式按鈕 */
   .help-btn {
@@ -300,6 +313,31 @@
     background: #e5e7eb; padding: 1px 4px;
     border-radius: 3px; font-family: monospace;
   }
+  /* 頁尾「判斷規則說明」：內容較長，需要標題層級與可讀的表格 */
+  #rules-help .help-btn { font-size: 0.95em; font-weight: 600; }
+  #rules-help .help-body { font-size: 0.88em; max-height: 60vh; overflow-y: auto; }
+  #rules-help .help-body h4 {
+    margin: 1.1em 0 0.4em; font-size: 1.02em; color: var(--primary);
+    border-bottom: 1px solid #e2e8f0; padding-bottom: 0.2em;
+  }
+  #rules-help .help-body h4:first-child { margin-top: 0.2em; }
+  #rules-help .help-body ul { margin: 0.3em 0; padding-left: 1.3em; }
+  #rules-help .help-body li { margin: 0.15em 0; }
+  #rules-help .help-body table {
+    border-collapse: collapse; width: 100%; margin: 0.5em 0 0.8em; font-size: 0.95em;
+  }
+  #rules-help .help-body th, #rules-help .help-body td {
+    border: 1px solid #e2e8f0; padding: 0.3em 0.5em; text-align: left; vertical-align: top;
+  }
+  #rules-help .help-body th { background: #f8fafc; white-space: nowrap; }
+  #rules-help .help-body .rk { font-weight: 600; white-space: nowrap; }
+  #rules-help .help-body .swatch {
+    display: inline-block; width: 1.5em; height: 1em; margin-right: 0.35em;
+    vertical-align: -0.1em; background: #fff;
+  }
+  #rules-help .help-body .sw-inq { border: 2px solid #7c3aed; }
+  #rules-help .help-body .sw-sub { border: 2px solid #3b7fed; }
+  #rules-help .help-body .sw-ryu { border: 2px solid #a8a29e; }
 
   /* 語言分段切換鈕（中／EN） */
   .lang-switch {
@@ -497,6 +535,9 @@
 <script>
 const DATA = (window.__DATA__ || []);
 const TEACHERS = (window.__TEACHERS__ || []);
+// 領域時間（科務會議／共同備課）：extract_school 已把這些格子排除出 __DATA__，
+// 所以在所有調代課邏輯裡就是「空堂」；這份清單只用來在課表上畫灰框標示。
+const RYU = (window.__RYU__ || []);
 // 教師英文名對照（en_name.js 可有可無；缺檔或缺名子時維持顯示中文名）
 const EN_NAMES = (window.__EN_NAMES__ || {});
 if (!TEACHERS.length) {
@@ -549,6 +590,8 @@ const STRINGS = {
     officeCopy: "📋 複製清單",
     officeScreenshot: "📸 截圖（異動總表）",
     footerIssue: "用起來有問題？",
+    rulesBtn: "ⓘ 判斷規則說明（哪些課不能調、什麼是連堂、會議怎麼算）",
+    rulesBody: "<h4>先講最重要的一句</h4><p>這個程式<strong>只會比對課表找出「誰那節有空」</strong>。它不知道學校的行政規定、也不知道誰兼幾節。<strong>它給的是候選名單，不是決定。</strong></p><h4>一、課表上的框線</h4><table><tr><th>框線</th><th>意思</th><th>能調課</th><th>能代課</th></tr><tr><td class=\"rk\">沒有框</td><td>一般課程</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-inq\"></span>紫色粗框</td><td>連堂課（建議同一人代兩節，<strong>但不強制</strong>）</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-sub\"></span>藍色粗框</td><td>多元／自主／團體活動時間</td><td>❌</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-ryu\"></span>灰色細框</td><td>領域時間（其實是空堂）</td><td>—</td><td>—</td></tr><tr><td class=\"rk\">⚠ 記號</td><td>行政會議／團體活動時間（不是一般授課）</td><td>看框線</td><td>✅</td></tr></table><h4>二、哪些課只能請人代、不能跟人對調（藍框）</h4><ul><li><strong>多元選修</strong>（課名有「多元」）——跑班課程，學生是跨班來的，換到別的時段學生根本不會出現</li><li><strong>自主學習</strong>（課名有「自主」）——同樣是全校固定時段</li><li><strong>團體活動時間</strong>（週五第 5、6 節）——全校同時進行，想跟誰對調，那位老師那時也在帶團體活動</li></ul><p>點到這種格子時，程式會直接關掉「調課」，只留「找人代課」。</p><p>但反過來，<strong>別人的</strong>多元／自主／團體活動時段，程式目前<strong>還是會</strong>列成可以跟你對調的選項——程式只檢查你自己請假的那一節，對方那節能不能動由對方判斷。</p><h4>三、什麼是「連堂」（紫框）</h4><p><strong>連堂不是強制。</strong>標成連堂之後，你原本能做的事一件都沒少：</p><ul><li>✅ 只請人代第一節，第二節自己上</li><li>✅ 只調第一節，第二節不動</li><li>✅ 兩節分別找兩位不同老師代</li><li>✅ 兩節找同一位老師代完</li></ul><p>標成連堂<strong>只是多做兩件事</strong>：候選名單最上面多一個「<strong>兩節都能代／調的老師</strong>」群組（這些人兩節都有空，可以一次接完）；點下去時面板多一行提醒。所以列進連堂名單只有好處、沒有副作用。</p><p>目前判定為連堂的有 <strong>3 種</strong>：化學-探究A、物理-探究B、生活科技。課表上「剛好相鄰兩節同一班」的組合其實有 76 種，哪些是真的必須連著上，程式沒辦法自己知道——請洽教學組確認。</p><h4>四、會議／領域時間／團體活動怎麼算</h4><table><tr><th>類別</th><th>課表上長怎樣</th><th>我請假時</th><th>別人能調進來嗎</th></tr><tr><td class=\"rk\">領域時間<br><span style=\"font-weight:400;color:#78716c\">藝能／社會／國文／自然／英文／數學／二外領域</span></td><td><span class=\"swatch sw-ryu\"></span>灰框空堂＋淡字課名</td><td>不用處理（它不是課，不會出現在請假清單裡）</td><td>✅ 可以（程式把它當空堂）</td></tr><tr><td class=\"rk\">行政會議<br><span style=\"font-weight:400;color:#78716c\">週一第 1、2 節</span></td><td>有課＋⚠ 記號</td><td>可調、可代</td><td>✅ 可以</td></tr><tr><td class=\"rk\">團體活動時間<br><span style=\"font-weight:400;color:#78716c\">週五第 5、6 節</span></td><td><span class=\"swatch sw-sub\"></span>藍框＋⚠ 記號</td><td><strong>只能代</strong>，不能調</td><td>❌ 不行</td></tr></table><p>⚠ 記號的意思是：<em>這不是一般授課，原則上可以調課或代課，但請自行跟相關單位確認。</em></p><p><strong>領域時間要注意</strong>：同一科的老師領域時間通常是同一個時段，那兩節整科都在開會。程式不知道這件事，還是會把同科老師列成候選。灰框就是提醒你「這節其實有事」，要不要接受由你判斷。</p><h4>五、程式怎麼認課別</h4><p>看的是<strong>課程名稱裡的關鍵字</strong>，不是課號、不是老師：</p><table><tr><th>類別</th><th>關鍵字</th></tr><tr><td class=\"rk\">只能代課（藍框）</td><td>課名含「多元」、「自主」、「團體活動」</td></tr><tr><td class=\"rk\">連堂（紫框）</td><td>課名含「-探究」，或在確認過的白名單裡（目前：生活科技）</td></tr><tr><td class=\"rk\">領域時間（灰框）</td><td>課名<strong>以「領域」結尾</strong>（「領域課程」除外，那是真的有學生的課）</td></tr><tr><td class=\"rk\">行政會議（⚠）</td><td>課名含「行政會」</td></tr></table><p>學校改課名，判斷就會跟著變。只要新課名還有這些關鍵字（例如「行政會報」改成「行政會議」、「團體活動」改成「團體活動時間」）程式照樣認得；若改成完全不同的詞（例如「領域時間」改叫「共同備課」），就要通知維護者改設定。</p><h4>六、程式不知道的事</h4><ul><li>同科老師的領域時間是同一個時段——那兩節整科都在開會，程式還是會把他們列成候選</li><li>對方的「只能代課」時段——程式只擋你自己那一邊</li><li>兼課節數、鐘點費、公假出差——完全不知道</li><li>課名看不懂的課（如 WG、OH、TSP、Wri）——「同科老師」推薦會不準</li></ul>",
     modalSub: '這個程式只能幫忙對課表找時段，但不知道其他調代課規則。<br>This tool only matches schedules to find slots; it doesn\'t know other substitution rules.',
     modalOk: "我知道了 / Got it",
 
@@ -571,6 +614,8 @@ const STRINGS = {
     lgConfIn: "✓ 我代他的時段",
     lgInquiry: "紫框表示連堂課（考慮盡量同一個老師）",
     lgSubOnly: "藍框表示不能調課、只能代課",
+    lgRyu: "灰框表示領域時間（視同空堂，可被調進來）",
+    lgNotice: "⚠ 行政會議／團體活動時間（可調代，請自行確認）",
 
     // 自己／對方課表
     selfNoNeed: (n) => `⨯ 不用上 ${n}代`,
@@ -617,7 +662,8 @@ const STRINGS = {
     ibCourse: "IB 課程",
     panelGuide: '<span class="guide-hr">（導師）</span>＝該班導師　<span class="guide-star">★</span>＝同科目老師　右側小字顯示任教科目',
     inquiryNote: (lo, hi) => `⚠️ 這是連堂第 ${lo}-${hi} 節。「兩節都能代/調的老師」可一人代兩節；要分兩位代或想調課，就分開逐節處理。`,
-    subOnlyNote: "⚠️ 多元／自主／行政類課程不能調課，只能請人代課。",
+    subOnlyNote: "⚠️ 多元／自主／團體活動時間不能調課，只能請人代課。",
+    noticeNote: "⚠️ 這是行政會議／團體活動時間，不是一般授課。原則上可以調課或代課，但請自行跟相關單位確認。",
     partnerBoth: (n) => `（${n} 老師 兩節都有空，可一次代完）`,
     partnerOne: (n) => `（${n} 老師 只有這節空，另一節要再找人）`,
     swapLabel: "要調課",
@@ -700,6 +746,8 @@ const STRINGS = {
     officeCopy: "📋 Copy list",
     officeScreenshot: "📸 Screenshot (change tables)",
     footerIssue: "Having trouble?",
+    rulesBtn: "ⓘ How the tool decides (what can't be swapped, consecutive periods, meetings)",
+    rulesBody: "<h4>The one thing to remember</h4><p>This tool <strong>only matches schedules to find who is free</strong>. It does not know school policy, teaching loads or leave rules. <strong>It gives you a candidate list, not a decision.</strong></p><h4>1. Cell borders</h4><table><tr><th>Border</th><th>Meaning</th><th>Swap</th><th>Sub</th></tr><tr><td class=\"rk\">none</td><td>Regular class</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-inq\"></span>Purple</td><td>Consecutive double period (same teacher preferred, <strong>not required</strong>)</td><td>✅</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-sub\"></span>Blue</td><td>Elective / self-study / group activity</td><td>❌</td><td>✅</td></tr><tr><td class=\"rk\"><span class=\"swatch sw-ryu\"></span>Grey</td><td>Department meeting time (actually a free slot)</td><td>—</td><td>—</td></tr><tr><td class=\"rk\">⚠</td><td>Admin meeting / group activity (not a regular class)</td><td>see border</td><td>✅</td></tr></table><h4>2. Sub only, no swap (blue border)</h4><ul><li><strong>Electives</strong> (name contains 多元) — students come from many classes; moving the slot means nobody shows up</li><li><strong>Self-study</strong> (name contains 自主) — school-wide fixed slot</li><li><strong>Group activity</strong> (Fri P5–P6) — school-wide at the same time, so there is nobody free to swap with</li></ul><p>Clicking such a cell disables swapping and offers substitutes only.</p><p>Note the tool only blocks <em>your own</em> leave slot. Someone else's elective / self-study slot is still offered as a swap target — that call is theirs to make.</p><h4>3. What \"consecutive\" means (purple border)</h4><p><strong>It is not enforced.</strong> You can still cover only the first period, swap only one period, use two different substitutes, or have one person take both.</p><p>Marking a course as consecutive only <strong>adds</strong> two things: a \"free for both periods\" group at the top of the candidate list, and a reminder note on the panel. So listing a course as consecutive has upside only.</p><p>Currently 3 courses qualify: 化學-探究A, 物理-探究B, 生活科技. There are 76 course names that merely happen to sit in two adjacent periods for the same class; which of those must actually run back-to-back is something the tool cannot know — ask the academic office.</p><h4>4. Meetings, department time, group activity</h4><table><tr><th>Type</th><th>On the grid</th><th>When you take leave</th><th>Can others swap in?</th></tr><tr><td class=\"rk\">Department meeting time<br><span style=\"font-weight:400;color:#78716c\">XX領域</span></td><td><span class=\"swatch sw-ryu\"></span>Grey empty cell + faint label</td><td>Nothing to do — it is not a class</td><td>✅ Yes (treated as free)</td></tr><tr><td class=\"rk\">Admin meeting<br><span style=\"font-weight:400;color:#78716c\">Mon P1–P2</span></td><td>Occupied + ⚠</td><td>Swap or sub</td><td>✅ Yes</td></tr><tr><td class=\"rk\">Group activity<br><span style=\"font-weight:400;color:#78716c\">Fri P5–P6</span></td><td><span class=\"swatch sw-sub\"></span>Blue + ⚠</td><td><strong>Sub only</strong>, no swap</td><td>❌ No</td></tr></table><p>⚠ means: this is not a regular class. A swap or sub is allowed in principle, but please confirm with the relevant office.</p><p><strong>Caveat</strong>: teachers of the same subject usually share one department meeting slot, so the whole subject is in a meeting then. The tool does not know this and will still list them. The grey border is your reminder.</p><h4>5. How courses are classified</h4><p>By <strong>keywords in the course name</strong> — not by course code or teacher:</p><table><tr><th>Type</th><th>Keyword</th></tr><tr><td class=\"rk\">Sub only (blue)</td><td>name contains 多元 / 自主 / 團體活動</td></tr><tr><td class=\"rk\">Consecutive (purple)</td><td>name contains -探究, or is on the confirmed list (currently 生活科技)</td></tr><tr><td class=\"rk\">Department time (grey)</td><td>name <strong>ends with 領域</strong> (except 領域課程, which is a real class)</td></tr><tr><td class=\"rk\">Admin meeting (⚠)</td><td>name contains 行政會</td></tr></table><p>If the school renames a course but keeps these keywords the tool still recognises it; if it renames to something entirely different, the maintainer must update the settings.</p><h4>6. What the tool does not know</h4><ul><li>That a whole subject is in its department meeting at that hour</li><li>Whether the other teacher's slot may be moved</li><li>Teaching loads, pay, official leave</li><li>Courses with opaque names (WG, OH, TSP, Wri) — subject matching will be off</li></ul>",
     modalSub: '這個程式只能幫忙對課表找時段，但不知道其他調代課規則。<br>This tool only matches schedules to find slots; it doesn\'t know other substitution rules.',
     modalOk: "我知道了 / Got it",
 
@@ -720,6 +768,8 @@ const STRINGS = {
     lgConfIn: "✓ I cover their slot",
     lgInquiry: "Purple border = consecutive periods (prefer the same teacher)",
     lgSubOnly: "Blue border = sub only, no swap",
+    lgRyu: "Grey border = department meeting time (treated as a free slot)",
+    lgNotice: "⚠ Admin meeting / group activity (swap or sub allowed — please confirm)",
 
     selfNoNeed: (n) => `⨯ Off — ${n} covers`,
     selfCover: (n) => `↻ Cover ${n}`,
@@ -761,7 +811,8 @@ const STRINGS = {
     ibCourse: "IB course",
     panelGuide: '<span class="guide-hr">(Homeroom)</span> = class homeroom　<span class="guide-star">★</span> = same-subject teacher　small text on the right shows the subject taught',
     inquiryNote: (lo, hi) => `⚠️ Consecutive periods P${lo}-${hi}. A "both-periods" teacher can cover both; to split between two people or to swap, handle each period separately.`,
-    subOnlyNote: "⚠️ Elective/self-study/admin courses can't be swapped — only covered by a sub.",
+    subOnlyNote: "⚠️ Elective / self-study / group-activity periods can't be swapped — only covered by a sub.",
+    noticeNote: "⚠️ This is an admin meeting / group activity period, not a regular class. A swap or sub is allowed in principle, but please confirm with the relevant office.",
     partnerBoth: (n) => `(${n} is free both periods and can cover both at once)`,
     partnerOne: (n) => `(${n} is free only this period; find someone else for the other)`,
     swapLabel: "To swap",
@@ -936,14 +987,36 @@ function buildHeader(position) {
   return html;
 }
 
+// 連堂課（紫框）：相鄰兩節同班、實務上希望同一位老師連著上完的課。
+// 課名每學期會改（114-2「物理地科探究」→115-1「物理-探究B」、「生科」→「生活科技」），
+// 所以「-探究」用規則式比對，其餘維持課名白名單（新增課名請同步更新 連堂課程_待確認清單.md）。
+// 注意：列入白名單是「非破壞性」的——連堂課仍可只代一節、也仍可逐節調課，
+// 白名單只是多出「兩節都能代/調的老師」候選群組與提示。
+const INQUIRY_NAMES = [
+  "物理-探究A", "物理-探究B", "化學-探究A", "化學-探究B",  // 115-1
+  "物理地科探究", "化學生物探究", "生科", "領域課程",        // 114-2 舊課名（相容）
+  "IPSS", "生活科技",
+];
 function isInquiryCourse(name) {
-  return name === "物理地科探究" || name === "化學生物探究" || name === "IPSS"
-      || name === "生科" || name === "領域課程";
+  if (!name) return false;
+  return INQUIRY_NAMES.includes(name) || name.includes("-探究");
 }
-// 多元／自主／行政會報：不能調課、只能代課（以課名關鍵字判斷）
+// 藍框「只能代課、不能調課」：多元／自主／團體活動時間。
+// 團體活動是全校固定時段（五5、五6），跟人對調在物理上不成立，只能請人代。
+// 課名每學期會被改（114-2「團體活動」→115-1「團體活動時間」），故用 includes 比對。
+// 行政會議不在此列——經確認為「可調可代」，改以 ⚠ 提示（見 isNoticeCourse）。
 function isSubOnlyCourse(name) {
-  return !!name && (name.includes("多元") || name.includes("自主") || name.includes("行政會報"));
+  return !!name && (name.includes("多元") || name.includes("自主") || name.includes("團體活動"));
 }
+// ⚠ 提示課：行政會議／團體活動時間。原則上可以調代，只是提醒使用者這不是一般授課，
+// 要不要動請自行斟酌（含三角調中被 C 接手的那一節）。
+function isNoticeCourse(name) {
+  return !!name && (name.includes("行政會") || name.includes("團體活動"));
+}
+// 領域時間：該格在資料上是空的，只回傳課名供灰框標示用
+const RYU_MAP = {};
+for (const r of RYU) RYU_MAP[r.tcode + "-" + r.day + "-" + r.period] = r.course || "領域時間";
+function ryuAt(tc, d, p) { return RYU_MAP[tc + "-" + d + "-" + p] || null; }
 function inquiryPositionFor(tcode, d, p) {
   const e = getEntry(tcode, d, p);
   if (!e || !isInquiryCourse(e.course)) return null;
@@ -970,6 +1043,19 @@ function isIbCourse(name) {
 const STORAGE_KEY = "schoolWideSubstituteTeacher";
 let subjectFilter = "";  // 科目篩選按鈕狀態（空＝全部）
 
+// 下拉選單要列出的科目順序：DROPDOWN_ORDER 打頭，資料裡有但不在白名單的科目補在最後。
+// 保險機制：DROPDOWN_ORDER 是寫死的白名單，若某學期課名改版害老師被分到白名單外的科目
+// （例如「其他」），舊寫法會讓那些老師整個人從選單消失且毫無提示。
+function dropdownSubjects() {
+  const seen = new Set(TEACHERS.map(t => t.subject));
+  const extra = [...seen].filter(s => s && !DROPDOWN_ORDER.includes(s)).sort();
+  if (extra.length) {
+    console.warn("[代課查詢] 有老師的主授科目不在 DROPDOWN_ORDER 白名單：", extra,
+                 "→ 已補列在選單最後，但請檢查 extract_school.py 的科目分類。");
+  }
+  return [...DROPDOWN_ORDER, ...extra];
+}
+
 // 建立「我是誰」下拉選單。IB 模式開啟時只列 IB 教師（35 位）；否則全部 130 位
 // 已選的教師若在新清單中仍存在則保留；不存在時瀏覽器自動 fallback 到第一個 option
 function populateTeacherDropdown() {
@@ -989,7 +1075,7 @@ function populateTeacherDropdown() {
     if (ibOnly && !t.isIB) continue;
     (grouped[t.subject] ||= []).push(t);
   }
-  for (const sub of DROPDOWN_ORDER) {
+  for (const sub of dropdownSubjects()) {
     if (subjectFilter && sub !== subjectFilter) continue;  // 科目篩選
     const list = grouped[sub];
     if (!list || list.length === 0) continue;
@@ -1030,7 +1116,7 @@ function buildSubjectButtons() {
     wrap.appendChild(b);
   };
   mk("", t("allSubjects"));                          // 「全部 / All」
-  for (const sub of DROPDOWN_ORDER) mk(sub, t("subjLabel", sub));  // 科目按鈕雙語
+  for (const sub of dropdownSubjects()) mk(sub, t("subjLabel", sub));  // 科目按鈕雙語
 }
 function updateSubjectButtons() {
   document.querySelectorAll("#subject-filter .subj-btn").forEach(b => {
@@ -1251,11 +1337,15 @@ function computeCellState(d, p) {
   }
 
   if (e) {
+    const mark = isNoticeCourse(e.course) ? `<span class="notice-mark">⚠</span>` : "";
     return {
       cls: "cell-occupied",
-      html: `${e.course}${e.klass ? " " + e.klass : ""}`,
+      html: `${mark}${e.course}${e.klass ? " " + e.klass : ""}`,
     };
   }
+  // 領域時間：資料上是空堂（可被調進來），只在畫面上標示是哪一科的領域時間
+  const ryu = ryuAt(tcode, d, p);
+  if (ryu) return { cls: "cell-empty", html: `<span class="ryu-tag">${ryu}</span>` };
   return { cls: "cell-empty", html: "·" };
 }
 
@@ -1270,7 +1360,8 @@ function buildFocusGrid() {
       const subCls = (myE && isSubOnlyCourse(myE.course)) ? " sub-only" : "";
       const pos = inquiryPosition(d, p);
       const inqCls = subCls ? "" : (pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "");
-      html += `<td class="${s.cls}${inqCls}${subCls}" data-day="${d}" data-period="${p}">${s.html}</td>`;
+      const ryuCls = (!myE && ryuAt(focusCode(), d, p)) ? " ryu" : "";
+      html += `<td class="${s.cls}${inqCls}${subCls}${ryuCls}" data-day="${d}" data-period="${p}">${s.html}</td>`;
     }
     html += '</tr>';
   }
@@ -1450,7 +1541,26 @@ function renderLegend() {
   }
   if (hasInquiry) items.push(`<span class="lg-inquiry">${t("lgInquiry")}</span>`);
 
-  // 藍框提示：使用者課表中有多元/自主/行政會報才顯示
+  // 灰框提示：使用者有領域時間才顯示
+  let hasRyu = false;
+  outerR: for (let d = 1; d <= 5; d++) {
+    for (let p = 1; p <= 7; p++) {
+      if (!getEntry(tcode, d, p) && ryuAt(tcode, d, p)) { hasRyu = true; break outerR; }
+    }
+  }
+  if (hasRyu) items.push(`<span class="lg-ryu">${t("lgRyu")}</span>`);
+
+  // ⚠ 提示：使用者課表中有行政會議／團體活動時間才顯示
+  let hasNotice = false;
+  outerN: for (let d = 1; d <= 5; d++) {
+    for (let p = 1; p <= 7; p++) {
+      const ee = getEntry(tcode, d, p);
+      if (ee && isNoticeCourse(ee.course)) { hasNotice = true; break outerN; }
+    }
+  }
+  if (hasNotice) items.push(`<span class="lg-notice">${t("lgNotice")}</span>`);
+
+  // 藍框提示：使用者課表中有多元/自主/團體活動才顯示
   let hasSubOnly = false;
   outer3: for (let d = 1; d <= 5; d++) {
     for (let p = 1; p <= 7; p++) {
@@ -1513,12 +1623,15 @@ function renderSelfSchedule() {
       } else {
         // 沒有變動 → 灰色
         cls = "cell-partner-context";
-        content = e ? `${e.course}${e.klass ? " " + e.klass : ""}` : "·";
+        const ryuName = e ? null : ryuAt(myCode, d, p);
+        content = e ? `${e.course}${e.klass ? " " + e.klass : ""}`
+                    : (ryuName ? `<span class="ryu-tag">${ryuName}</span>` : "·");
       }
       const pos = inquiryPositionFor(myCode, d, p);
       const subCls = (e && isSubOnlyCourse(e.course)) ? " sub-only" : "";
       const inqCls = subCls ? "" : (pos === "top" ? " inquiry-top" : pos === "bottom" ? " inquiry-bottom" : "");
-      html += `<td class="${cls}${inqCls}${subCls}" style="cursor:default">${content}</td>`;
+      const ryuCls = (!e && ryuAt(myCode, d, p)) ? " ryu" : "";
+      html += `<td class="${cls}${inqCls}${subCls}${ryuCls}" style="cursor:default">${content}</td>`;
     }
     html += '</tr>';
   }
@@ -2392,6 +2505,9 @@ function renderPanel() {
     const hi = Math.max(ls.period, paired);
     html += `<div class="panel-note">${t("inquiryNote", lo, hi)}</div>`;
   }
+  if (isNoticeCourse(e.course)) {
+    html += `<div class="panel-note" style="color:#92400e">${t("noticeNote")}</div>`;
+  }
   if (isSubOnlyCourse(e.course)) {
     html += `<div class="panel-note" style="color:#1d4ed8">${t("subOnlyNote")}</div>`;
   }
@@ -2750,6 +2866,11 @@ function generateSummaryForPartner(pcode, confs) {
 init();
 </script>
 
+<div id="rules-help" style="max-width:52em; margin:2.5em auto 1em; text-align:left">
+  <button class="help-btn" data-target="rules-help-body" data-i18n="rulesBtn">ⓘ 判斷規則說明（哪些課不能調、什麼是連堂、會議怎麼算）</button>
+  <div id="rules-help-body" class="help-body" hidden data-i18n-html="rulesBody"></div>
+</div>
+
 <p style="color: #718096; font-size: 14px; letter-spacing: 0.5px;">
     <span data-i18n="footerIssue">用起來有問題？</span>
     <a href="mailto:chaher@dysh.tyc.edu.tw" style="color: #2d3748; font-weight: 600; text-decoration: none; border-bottom: 1px solid #2d3748; padding-bottom: 2px; transition: 0.2s;">
@@ -2770,6 +2891,17 @@ init();
   // 此 IIFE 在主 script 之後執行，modal/footer 此時才存在 → 再套一次 i18n（含版本標籤）
   if (typeof applyStaticI18n === "function") applyStaticI18n();
   else if (typeof refreshVersionTag === "function") refreshVersionTag();
+
+  // 頁尾「判斷規則說明」的展開／收合。這個區塊在主 script 之後才存在，
+  // init() 裡的 .help-btn 綁定掃不到它，所以在這裡補綁一次。
+  document.querySelectorAll("#rules-help .help-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = document.getElementById(btn.dataset.target);
+      if (!target) return;
+      target.hidden = !target.hidden;
+      btn.classList.toggle("open", !target.hidden);
+    });
+  });
   function closeModal() { modal.style.display = "none"; }
   document.getElementById("version-modal-ok").addEventListener("click", closeModal);
   modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
