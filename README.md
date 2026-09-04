@@ -71,6 +71,7 @@ Switch_time/
 │   ├── build_strokes.py    Unicode Unihan → assets/_strokes.json
 │   │                       （一次性，教師名單變動才重跑）
 │   ├── menu.py             互動選單；負責呼叫各腳本 + 發布到 live/
+│   │                       [7] 判不出科別的老師逐位指定 → 科別修正.json
 │   ├── analyze_workload.py / analyze_workload_114.py
 │   ├── build_viz.py / build_viz_114.py
 │   │                       授課節數 / 勞務分析（輸出 Analysis/，已 gitignore）
@@ -178,6 +179,7 @@ live/index.html   ← 執行時引用同層的 live/data.js
 | `versions/<版本>/全校_領域時間.md` | 領域時間獨立列表（私有） | ✗ |
 | `versions/<版本>/領域時間.json` | 結構化領域時間（視同空堂），供 audit 與網頁灰框標示用（私有） | ✗ |
 | `versions/<版本>/teachers.json` | 完整教師名冊（來源＝PDF 表頭，非 CSV 反推；私有） | ✗ |
+| `versions/<版本>/科別修正.json` | 人工指定的主授科目（選單 [7] 產生，之後自動沿用；私有） | ✗ |
 | `versions/<版本>/分類確認表.md` | 人工審查表（私有） | ✗ |
 | `live/index.html` | nginx 服務的 HTML（= 母檔複本，私有） | ✗ |
 | `live/data.js` | nginx 服務的資料（= 目前版本，私有） | ✗ |

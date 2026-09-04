@@ -83,6 +83,20 @@ def ryu_json_path(version):
     return vdir(version) / "領域時間.json"
 
 
+# 網頁下拉選單會列出的科目。主授科目不在這個集合裡的老師，網頁上會整個漏掉，
+# 所以 extract_school 會出聲警告、menu 會互動詢問。改這裡要同步改
+# template/代課查詢_發布.html 的 DROPDOWN_ORDER。
+UI_SUBJECTS = ["國", "英", "自", "數", "社", "藝", "體", "特", "二外", "本土語"]
+
+
+def subject_fix_path(version):
+    """人工指定的主授科目修正表（{教師代碼: 科目}）。
+
+    課名判斷不出科別時（例如只排彈性課、或課名是學校內部縮寫），
+    由維護者在 更新課表.bat 的選單裡指定，存在這裡下次自動沿用。"""
+    return vdir(version) / "科別修正.json"
+
+
 def teachers_json_path(version):
     """完整教師名冊（134 位，來源＝PDF 每頁表頭，不是 CSV 反推）。
 

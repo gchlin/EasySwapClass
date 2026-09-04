@@ -413,16 +413,30 @@ def main(version, ryu_only=False):
         if p in PREFIX_TO_SUBJECT:
             main_subject[code] = PREFIX_TO_SUBJECT[p]
 
+    # 人工修正表覆蓋（最高優先）：課名與職稱都判不出來時，由維護者在
+    # 更新課表.bat 選單裡指定，存成 versions/<版本>/科別修正.json，之後自動沿用。
+    fix_path = paths.subject_fix_path(version)
+    if fix_path.exists():
+        fixes = json.loads(fix_path.read_text(encoding="utf-8"))
+        applied = 0
+        for code, sub in fixes.items():
+            if code in teacher_set and sub:
+                main_subject[code] = sub
+                applied += 1
+        if applied:
+            print(f"  [套用] 科別修正.json：{applied} 位老師的主授科目採用人工指定值")
+
     # 保險：主授科目落在網頁下拉選單科目清單之外的老師，在網頁上會被靜默漏掉。
     # 這裡出聲警告，避免下次課名改版又悄悄掉人。
-    UI_SUBJECTS = {"國", "英", "自", "數", "社", "藝", "體", "特", "二外", "本土語"}
-    orphans = sorted(c for c in teacher_set if main_subject[c] not in UI_SUBJECTS)
+    orphans = sorted(c for c in teacher_set
+                     if main_subject[c] not in set(paths.UI_SUBJECTS))
     if orphans:
-        print(f"  ⚠ 有 {len(orphans)} 位老師的主授科目不在網頁科目清單中，"
-              f"網頁下拉選單會漏人：")
+        print(f"  ⚠ 有 {len(orphans)} 位老師的主授科目判不出來，"
+              f"網頁下拉選單會漏掉他們：")
         for c in orphans:
             print(f"      {c} {teacher_names.get(c, '?')} "
                   f"→ 「{main_subject[c]}」 職務={teacher_post.get(c, '')!r}")
+        print("      → 回選單按 [7] 可以逐位指定科目（指定後會記住，之後自動沿用）")
 
     # IB 教師：教過至少一門 IB 課程（純英文課名）
     ib_codes = set()

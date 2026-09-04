@@ -12,10 +12,13 @@
   [2] 微調 CSV 後重生 data.js 並發布（nginx 立即更新）
   [3] 只產單檔 HTML（自己手機 / email）
   [4] 產分類確認表，人工檢查
+  [7] 指定判不出科別的老師（他們在網頁選單上會漏掉）
   [5] 重新產生 live 網頁 index.html（改完 UI、或 live 的 html 不見了時）
   [6] 修復母檔（從 live/index.html 或最新單檔重建 template 母檔）
 """
+import csv
 import importlib.util
+import json
 import re
 import subprocess
 import sys
@@ -56,6 +59,130 @@ def run(script, *args):
     ok = subprocess.run(cmd, cwd=str(paths.ROOT)).returncode == 0
     print("\n" + ("[完成]" if ok else f"[失敗] {script}"))
     return ok
+
+
+# ── 判不出科別的老師：互動指定 ───────────────────────────────
+# 課名判斷不出科別的老師（只排彈性課、或課名是學校內部縮寫），主授科目會是
+# 「其他」；網頁下拉選單只列 paths.UI_SUBJECTS 裡的科目，這種老師整個人會消失。
+# 這裡讓維護者逐位指定，存進 versions/<版本>/科別修正.json，之後自動沿用。
+
+def unknown_subject_teachers(version):
+    """回傳 [(代碼, 姓名, 目前科目)]；沒有 teachers.json 時回空清單。"""
+    tj = paths.teachers_json_path(version)
+    if not tj.exists():
+        return []
+    roster = json.loads(tj.read_text(encoding="utf-8"))
+    ok = set(paths.UI_SUBJECTS)
+    return [(t["code"], t.get("name", ""), t.get("subject", ""))
+            for t in roster if t.get("subject") not in ok]
+
+
+def _courses_of(version, code, limit=4):
+    """該老師的課程名稱，指定科目時當判斷依據。"""
+    csv_p = paths.csv_path(version)
+    if not csv_p.exists():
+        return ""
+    names = []
+    with open(csv_p, encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            if r["教師代碼"] == code and r["課程名稱"] not in names:
+                names.append(r["課程名稱"])
+    if not names:
+        return "（這學期沒有排課，可能只有會議／領域時間）"
+    return "、".join(names[:limit]) + ("…" if len(names) > limit else "")
+
+
+def ask_subjects(version):
+    """逐位詢問判不出科別的老師，寫入 科別修正.json。回傳是否有新增指定。"""
+    unknown = unknown_subject_teachers(version)
+    if not unknown:
+        print("[OK] 所有老師都判得出科別，不需要指定。")
+        return False
+
+    fix_p = paths.subject_fix_path(version)
+    fixes = json.loads(fix_p.read_text(encoding="utf-8")) if fix_p.exists() else {}
+
+    print("")
+    print("─────────────────────────────────────────────")
+    print(f" 有 {len(unknown)} 位老師的科別判不出來")
+    print("─────────────────────────────────────────────")
+    print(" 這通常是因為他們只排了會議／彈性課，或課名是校內縮寫。")
+    print(" 不指定的話，他們在網頁的「我是誰」下拉選單裡會整個消失。")
+    print("")
+    print(f" 指定一次就會記住（存在 versions/{version}/科別修正.json），")
+    print(" 之後重跑不用再問。直接 Enter 可以跳過，之後再按 [7] 補。")
+    print("─────────────────────────────────────────────")
+
+    opts = paths.UI_SUBJECTS
+    menu_line = "  ".join(f"{i + 1}){x}" for i, x in enumerate(opts))
+    changed = False
+    for i, (code, name, cur) in enumerate(unknown, 1):
+        print("")
+        print(f" [{i}/{len(unknown)}] {code} {name}")
+        print(f"       目前判定：{cur or '（空白）'}")
+        print(f"       這學期的課：{_courses_of(version, code)}")
+        print(f"       {menu_line}   (0 或 Enter = 跳過)")
+        ans = input("       請選科目：").strip()
+        if not ans or ans == "0":
+            print("       → 跳過")
+            continue
+        pick = None
+        if ans.isdigit() and 1 <= int(ans) <= len(opts):
+            pick = opts[int(ans) - 1]
+        elif ans in opts:
+            pick = ans
+        if not pick:
+            print(f"       →「{ans}」不是有效選項，跳過")
+            continue
+        fixes[code] = pick
+        changed = True
+        print(f"       → 已指定為「{pick}」")
+
+    if changed:
+        fix_p.write_text(json.dumps(fixes, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"\n[已存檔] {fix_p}")
+    else:
+        print("\n[沒有變更] 沒有指定任何科目。")
+    return changed
+
+
+def apply_subject_fix(version):
+    """把 科別修正.json 套進 teachers.json 與 CSV 的「主授科目」欄。
+
+    刻意不重跑 extract_school——那會重讀 PDF、覆蓋手動修過的 CSV。
+    這裡只改主授科目這一欄，其餘資料原封不動。
+    （extract_school 自己跑的時候也會讀同一份修正表，兩條路徑結果一致。）
+    """
+    fix_p = paths.subject_fix_path(version)
+    if not fix_p.exists():
+        return False
+    fixes = json.loads(fix_p.read_text(encoding="utf-8"))
+    if not fixes:
+        return False
+
+    tj = paths.teachers_json_path(version)
+    if tj.exists():
+        roster = json.loads(tj.read_text(encoding="utf-8"))
+        for t in roster:
+            if t["code"] in fixes:
+                t["subject"] = fixes[t["code"]]
+        tj.write_text(json.dumps(roster, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    csv_p = paths.csv_path(version)
+    if csv_p.exists():
+        with open(csv_p, encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames
+            rows = list(reader)
+        for r in rows:
+            if r["教師代碼"] in fixes:
+                r["主授科目"] = fixes[r["教師代碼"]]
+        with open(csv_p, "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames)
+            w.writeheader()
+            w.writerows(rows)
+    print(f"[完成] 已套用 {len(fixes)} 筆科別修正")
+    return True
 
 
 def deploy_ui():
@@ -134,6 +261,10 @@ HELP = """
    只編輯 template/代課查詢_發布.html（瀏覽器可直接預覽），
    改完按 [5] 部署到 live/，再按 [3] 重產單檔。
 
+ 有老師在下拉選單裡找不到：
+   通常是他的科別判不出來（只排會議／彈性課，或課名是校內縮寫）。
+   按 [7] 逐位指定科目即可，指定一次就會記住，之後重跑不用再問。
+
  網頁不見了怎麼辦：
    live 的 index.html 不見 → 按 [5] 用母檔重建。
    連 template 母檔也不見 → 按 [6] 從 live 或單檔重建母檔，
@@ -186,8 +317,12 @@ def main():
                 if ans.strip().lower() != "y":
                     print("已取消。")
                     continue
-            if run("extract_school.py", "--version", version) and \
-               run("build_data.py", "--version", version):
+            if not run("extract_school.py", "--version", version):
+                continue
+            # 判不出科別的老師會從網頁選單消失 → 趁這裡問清楚再往下走
+            if unknown_subject_teachers(version) and ask_subjects(version):
+                apply_subject_fix(version)
+            if run("build_data.py", "--version", version):
                 run("build_single.py", "--version", version)
                 publish(version)
         elif choice == "2":
@@ -202,6 +337,15 @@ def main():
             if not extract_ready():
                 continue
             run("audit_categories.py", "--version", prompt_version())
+        elif choice == "7":
+            version = prompt_version()
+            if not version:
+                print("[停止] 請輸入版本。")
+                continue
+            if ask_subjects(version) and apply_subject_fix(version):
+                if run("build_data.py", "--version", version):
+                    run("build_single.py", "--version", version)
+                    publish(version)
         elif choice == "5":
             deploy_ui()
         elif choice == "6":
